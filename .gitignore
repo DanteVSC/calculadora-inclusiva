@@ -1,3 +1,4 @@
+# Esse arquivo serve para definir quais arquivos e pastas devem ser ignorados pelo Git ao dar commit.
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
 # dependencies
@@ -32,11 +33,12 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
 
-example
+app-example
 
 # generated native folders
 /ios
