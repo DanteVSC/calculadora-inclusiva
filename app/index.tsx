@@ -10,7 +10,7 @@ export default function Index() {
     <View style={[styles.container, { backgroundColor: cores.fundo }]}>
       <Pressable style={[styles.button, { backgroundColor: cores.secundaria }]} onPress={inverterTema}>
         <Text style={styles.buttonText}>
-          Temaaaaa atual: {tema === 'claro' ? 'Claro' : 'Escuro'}
+          Tema atual: {tema === 'claro' ? 'Claro' : 'Escuro'}
         </Text>
       </Pressable>
     </View>
