@@ -1,5 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Cores } from '../constantes/cores';
 import { usarTema } from '../hooks/usar-tema';
 import { usarVoz } from '../hooks/usar-voz';
@@ -15,7 +15,7 @@ export default function Index() {
     <View style={[styles.container, { backgroundColor: cores.fundo }]}>
       <View style={[styles.header, { backgroundColor: cores.texto }]}>
         <Pressable onPress={inverterTema}>
-          <Ionicons name="information-circle-outline" size={24} color={cores.fundo} />
+          <Ionicons name={tema == 'claro' ? 'moon-outline' : 'sunny-outline' } size={24} color={cores.fundo} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: cores.fundo }]}>Calculadora</Text>
         <Pressable>
