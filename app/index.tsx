@@ -72,7 +72,7 @@ export default function Index() {
         ) : (
           <Pressable onPress={() => setEditando(true)}>
             <Text style={styles.bannerText}>
-              "{textoLegenda || 'Clique para digitar...'}"
+              "{textoLegenda || 'Pressione o microfone para gravar e solte quando terminar'}"
             </Text>
           </Pressable>
         )}
@@ -83,7 +83,7 @@ export default function Index() {
         <Text style={[styles.visorTexto, { color: cores.texto }]}>
           {resultado?.tipo === 'conta'
             ? `${resultado.expressao} = ${resultado.resultado}`
-            : resultado?.mensagem || 'Fale uma conta, ex: "7 mais 3"'}
+            : resultado?.mensagem || 'Aqui aparece o resultado da conta'}
         </Text>
       </View>
 
