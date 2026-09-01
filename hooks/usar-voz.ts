@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 type ReconhecimentoVozTipo = {
   ouvindo: boolean;
@@ -17,6 +18,8 @@ declare global {
   }
 }
 
+const WEB = Platform.OS === 'web';
+
 export function usarVoz(): ReconhecimentoVozTipo {
   const [ouvindo, setOuvindo] = useState(false);
   const [texto, setTexto] = useState('');
@@ -25,80 +28,126 @@ export function usarVoz(): ReconhecimentoVozTipo {
 
   const reconhecimentoRef = useRef<any>(null);
 
-  const suportado =
-    typeof window !== 'undefined' &&
-    (window.SpeechRecognition || window.webkitSpeechRecognition);
+  const suportado = WEB
+    ? typeof window !== 'undefined' &&
+      !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+    : true;
 
-  const criarReconhecimento = useCallback(() => {
-    if (!suportado) return null;
+  useEffect(() => {
+    if (WEB || !suportado) return;
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    const Voice = require('@react-native-voice/voice').default;
 
-    recognition.lang = 'pt-BR';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => {
+    const onInicio = () => {
       setOuvindo(true);
       setErro(null);
     };
 
-    recognition.onresult = (event: any) => {
-      let textoFinal = '';
-      let parcial = '';
-
-      for (let i = 0; i < event.results.length; i++) {
-        const resultado = event.results[i];
-        if (resultado.isFinal) {
-          textoFinal += resultado[0].transcript;
-        } else {
-          parcial += resultado[0].transcript;
-        }
-      }
-
-      setTexto(textoFinal);
-      setTextoParcial(parcial);
-    };
-
-    recognition.onerror = (event: any) => {
-      setErro(event.error);
-      setOuvindo(false);
-    };
-
-    recognition.onend = () => {
+    const onFim = () => {
       setOuvindo(false);
       setTextoParcial('');
     };
 
-    return recognition;
+    const onResultado = (e: any) => {
+      setTexto(e.value[0] || '');
+      setTextoParcial('');
+    };
+
+    const onParcial = (e: any) => {
+      setTextoParcial(e.value[0] || '');
+    };
+
+    const onErro = (e: any) => {
+      setErro(String(e.error));
+      setOuvindo(false);
+    };
+
+    Voice.onSpeechStart = onInicio;
+    Voice.onSpeechEnd = onFim;
+    Voice.onSpeechResults = onResultado;
+    Voice.onSpeechPartialResults = onParcial;
+    Voice.onSpeechError = onErro;
+
+    return () => {
+      Voice.destroy().then(Voice.removeAllListeners);
+    };
   }, [suportado]);
 
   const iniciar = useCallback(() => {
-    const recognition = criarReconhecimento();
-    if (!recognition) {
-      setErro('Reconhecimento de voz não suportado neste navegador');
-      return;
-    }
-
-    reconhecimentoRef.current = recognition;
     setTexto('');
     setTextoParcial('');
     setErro(null);
 
-    try {
-      recognition.start();
-    } catch {
-      reconhecimentoRef.current = null;
-    }
-  }, [criarReconhecimento]);
+    if (WEB) {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  const parar = useCallback(() => {
-    if (reconhecimentoRef.current) {
-      reconhecimentoRef.current.stop();
-      reconhecimentoRef.current = null;
+      if (!SpeechRecognition) {
+        setErro('Reconhecimento de voz não suportado neste navegador');
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onstart = () => {
+        setOuvindo(true);
+        setErro(null);
+      };
+
+      recognition.onresult = (event: any) => {
+        let textoFinal = '';
+        let parcial = '';
+
+        for (let i = 0; i < event.results.length; i++) {
+          const resultado = event.results[i];
+          if (resultado.isFinal) {
+            textoFinal += resultado[0].transcript;
+          } else {
+            parcial += resultado[0].transcript;
+          }
+        }
+
+        setTexto(textoFinal);
+        setTextoParcial(parcial);
+      };
+
+      recognition.onerror = (event: any) => {
+        setErro(event.error);
+        setOuvindo(false);
+      };
+
+      recognition.onend = () => {
+        setOuvindo(false);
+        setTextoParcial('');
+      };
+
+      reconhecimentoRef.current = recognition;
+
+      try {
+        recognition.start();
+      } catch {
+        reconhecimentoRef.current = null;
+      }
+    } else {
+      const Voice = require('@react-native-voice/voice').default;
+      Voice.start('pt-BR');
     }
   }, []);
 
-  return { ouvindo, texto, textoParcial, iniciar, parar, erro, suportado: !!suportado };
+  const parar = useCallback(() => {
+    if (WEB) {
+      if (reconhecimentoRef.current) {
+        reconhecimentoRef.current.stop();
+        reconhecimentoRef.current = null;
+      }
+    } else {
+      const Voice = require('@react-native-voice/voice').default;
+      Voice.stop();
+    }
+  }, []);
+
+  return { ouvindo, texto, textoParcial, iniciar, parar, erro, suportado };
 }
