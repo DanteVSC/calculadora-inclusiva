@@ -138,6 +138,9 @@ export function usarVoz(): ReconhecimentoVozTipo {
   }, []);
 
   const parar = useCallback(() => {
+    setTexto((t) => t || textoParcial);
+    setTextoParcial('');
+
     if (WEB) {
       if (reconhecimentoRef.current) {
         reconhecimentoRef.current.stop();
@@ -147,7 +150,7 @@ export function usarVoz(): ReconhecimentoVozTipo {
       const Voice = require('@react-native-voice/voice').default;
       Voice.stop();
     }
-  }, []);
+  }, [textoParcial]);
 
   return { ouvindo, texto, textoParcial, iniciar, parar, erro, suportado };
 }
