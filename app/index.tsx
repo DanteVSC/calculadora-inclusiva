@@ -83,7 +83,7 @@ export default function Index() {
         <Text style={[styles.visorTexto, { color: cores.texto }]}>
           {resultado?.tipo === 'conta'
             ? `${resultado.expressao} = ${resultado.resultado}`
-            : resultado?.mensagem || 'Aqui aparece o resultado da conta'}
+            : resultado?.mensagem || ''}
         </Text>
       </View>
 

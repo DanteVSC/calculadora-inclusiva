@@ -33,4 +33,4 @@ o _layout.tsx envolve todo o app, o que estiver nele vai aparecer na tela indepe
 tem um tipo de recurso do react que é o context, voce cria um dele e cria uma função provedor pra ele.
 se voce criar um context, voce pode chamar ele como se fosse um recurso do react e envolver outros componentes do app com o contexto
 dai todos os componentes que estiverem envolvidos terão acesso as coisas que o provedor do contexto oferecer.
-resumindo, serve pra poder usar uma mesma "variavel" entre diferentes partes do app.
+serve pra poder usar uma mesma "variavel" entre diferentes partes do app.
