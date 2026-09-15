@@ -4,7 +4,7 @@ const PALAVRAS_NUMEROS: Record<string, number> = {
   onze: 11, doze: 12, treze: 13, catorze: 14, quinze: 15,
   vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50,
   sessenta: 60, setenta: 70, oitenta: 80, noventa: 90,
-  cem: 100, cento: 100, mil: 1000,
+  cem: 100, cento: 100,
 };
 
 const OPERACOES: Record<string, string> = {
@@ -46,7 +46,6 @@ function substituirPalavrasNumeros(texto: string): string {
     'duzentos': 200, 'trezentos': 300, 'quatrocentos': 400,
     'quinhentos': 500, 'seiscentos': 600, 'setecentos': 700,
     'oitocentos': 800, 'novecentos': 900,
-    'mil': 1000,
   };
 
   for (const [palavra, valor] of Object.entries(compostos)) {
@@ -57,7 +56,22 @@ function substituirPalavrasNumeros(texto: string): string {
     resultado = resultado.replace(new RegExp(`\\b${palavra}\\b`, 'g'), String(valor));
   }
 
-  resultado = resultado.replace(/(\d+)\s*e\s*(\d+)/g, (_, a, b) => String(Number(a) + Number(b)));
+  resultado = resultado.replace(/(\d+(?:\s*e\s*\d+)*)\s*mil\s+e\s+(\d+)/g, (_, compound, resto) => {
+    const sum = compound.split(/\s*e\s*/).reduce((acc: number, n: string) => acc + Number(n), 0);
+    return String(sum * 1000 + Number(resto));
+  });
+  resultado = resultado.replace(/(\d+(?:\s*e\s*\d+)*)\s*mil\b/g, (_, compound) => {
+    const sum = compound.split(/\s*e\s*/).reduce((acc: number, n: string) => acc + Number(n), 0);
+    return String(sum * 1000);
+  });
+  resultado = resultado.replace(/(?<!\d)\s*mil\s+e\s+(\d+)/g, (_, resto) => String(1000 + Number(resto)));
+  resultado = resultado.replace(/(?<!\d)\s*mil\b/g, '1000');
+
+  let anterior = '';
+  while (anterior !== resultado) {
+    anterior = resultado;
+    resultado = resultado.replace(/(\d+)\s*e\s*(\d+)/g, (_, a, b) => String(Number(a) + Number(b)));
+  }
 
   return resultado;
 }
