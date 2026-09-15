@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useState, useCallback, useRef } from 'react';
 import { Cores } from '../constantes/cores';
+import { processarComando, ResultadoProcessamento } from '../funcoes/logica';
 import { usarTema } from '../hooks/usar-tema';
 import { usarVoz } from '../hooks/usar-voz';
-import { processarComando, ResultadoProcessamento } from '../funcoes/logica';
 
 export default function Index() {
   const { tema, inverterTema } = usarTema();
@@ -60,7 +60,7 @@ export default function Index() {
         ) : editando ? (
           <TextInput
             style={styles.bannerInput}
-            placeholder="Digite uma conta..."
+            placeholder="Conta ou conversão de temperatura..."
             placeholderTextColor="#ffffff99"
             value={textoDigitado}
             onChangeText={setTextoDigitado}
@@ -81,7 +81,7 @@ export default function Index() {
       <View style={[styles.visor, { backgroundColor: cores.fundo, borderColor: cores.texto }]}>
         <Text style={[styles.visorLabel, { color: cores.texto }]}>Resultado:</Text>
         <Text style={[styles.visorTexto, { color: cores.texto }]}>
-          {resultado?.tipo === 'conta'
+          {resultado?.tipo === 'conta' || resultado?.tipo === 'temperatura'
             ? `${resultado.expressao} = ${resultado.resultado}`
             : resultado?.mensagem || ''}
         </Text>
@@ -173,12 +173,17 @@ const styles = StyleSheet.create({
   },
   micArea: {
     flex: 1,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 8,
+    padding: 60,
+    minHeight: 80,
     alignItems: 'center',
     justifyContent: 'center',
   },
   micButton: {
-    width: 180,
-    height: 180,
+    width: '100%',
+    height: '100%',
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',

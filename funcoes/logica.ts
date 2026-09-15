@@ -42,11 +42,15 @@ function substituirPalavrasNumeros(texto: string): string {
     'dezesseis': 16, 'dezessete': 17, 'dezoito': 18, 'dezenove': 19,
     'vinte': 20, 'trinta': 30, 'quarenta': 40, 'cinquenta': 50,
     'sessenta': 60, 'setenta': 70, 'oitenta': 80, 'noventa': 90,
-    'cem': 100, 'cento': 100, 'mil': 1000,
+    'cem': 100, 'cento': 100,
+    'duzentos': 200, 'trezentos': 300, 'quatrocentos': 400,
+    'quinhentos': 500, 'seiscentos': 600, 'setecentos': 700,
+    'oitocentos': 800, 'novecentos': 900,
+    'mil': 1000,
   };
 
   for (const [palavra, valor] of Object.entries(compostos)) {
-    resultado = resultado.replace(new RegExp(palavra, 'g'), String(valor));
+    resultado = resultado.replace(new RegExp(`\\b${palavra}\\b`, 'g'), String(valor));
   }
 
   for (const [palavra, valor] of Object.entries(PALAVRAS_NUMEROS)) {
@@ -59,16 +63,60 @@ function substituirPalavrasNumeros(texto: string): string {
 }
 
 export type ResultadoProcessamento = {
-  tipo: 'conta' | 'erro' | 'nao_entendi';
+  tipo: 'conta' | 'temperatura' | 'erro' | 'nao_entendi';
   expressao?: string;
   resultado?: number | string;
   mensagem?: string;
 };
 
+const UNIDADES_TEMP: Record<string, string> = {
+  celsius: 'C', c: 'C', centigrado: 'C', centigrados: 'C',
+  fahrenheit: 'F', f: 'F',
+  kelvin: 'K', kelvins: 'K', k: 'K',
+};
+
+const SIMBOLOS_TEMP: Record<string, string> = {
+  C: '°C', F: '°F', K: 'K',
+};
+
+function converterTemperatura(texto: string): ResultadoProcessamento | null {
+  const t = substituirPalavrasNumeros(texto);
+
+  const match = t.match(
+    /(\d+(?:[.,]\d+)?)\s*(?:graus\s*)?(celsius|fahrenheit|kelvin|c|f|k)\s*(?:para|em|p|pro|pra)\s*(celsius|fahrenheit|kelvin|c|f|k)/i
+  );
+
+  if (!match) return null;
+
+  const valor = parseFloat(match[1].replace(',', '.'));
+  const de = UNIDADES_TEMP[match[2].toLowerCase()];
+  const para = UNIDADES_TEMP[match[3].toLowerCase()];
+
+  if (!de || !para || de === para) return null;
+
+  let resultado: number;
+  const expressao = `${valor}${SIMBOLOS_TEMP[de]} → ${para}`;
+
+  switch (`${de}${para}`) {
+    case 'CF': resultado = valor * 1.8 + 32; break;
+    case 'CK': resultado = valor + 273.15; break;
+    case 'FC': resultado = (valor - 32) / 1.8; break;
+    case 'FK': resultado = (valor - 32) / 1.8 + 273.15; break;
+    case 'KC': resultado = valor - 273.15; break;
+    case 'KF': resultado = (valor - 273.15) * 1.8 + 32; break;
+    default: return null;
+  }
+
+  return { tipo: 'temperatura', expressao, resultado: Number(resultado.toFixed(2)) };
+}
+
 export function processarComando(texto: string): ResultadoProcessamento {
   if (!texto || texto.trim().length === 0) {
     return { tipo: 'erro', mensagem: 'Nenhum texto capturado' };
   }
+
+  const temp = converterTemperatura(texto);
+  if (temp) return temp;
 
   let processado = substituirPalavrasNumeros(texto);
 
