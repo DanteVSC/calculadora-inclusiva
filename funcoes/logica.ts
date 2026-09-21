@@ -131,6 +131,63 @@ function converterTemperatura(texto: string): ResultadoProcessamento | null {
   return { tipo: 'temperatura', expressao, resultado: Number(resultado.toFixed(2)) };
 }
 
+function resolverPotenciasERaizes(texto: string): string {
+  let r = texto;
+  r = r.replace(/(\d+(?:[.,]\d+)?)\s*ao\s+quadrado/g, (_, v) =>
+    String(Number(Math.pow(parseFloat(v.replace(',', '.')), 2).toFixed(10)))
+  );
+  r = r.replace(/(\d+(?:[.,]\d+)?)\s*ao\s+cubo/g, (_, v) =>
+    String(Number(Math.pow(parseFloat(v.replace(',', '.')), 3).toFixed(10)))
+  );
+  r = r.replace(/(\d+(?:[.,]\d+)?)\s*elevado\s+a(?:o)?\s+(\d+(?:[.,]\d+)?)/g, (_, b, e) =>
+    String(Number(Math.pow(parseFloat(b.replace(',', '.')), parseFloat(e.replace(',', '.'))).toFixed(10)))
+  );
+  r = r.replace(/raiz\s+quadrada\s+de?\s*(\d+(?:[.,]\d+)?)/g, (_, v) =>
+    String(Number(Math.sqrt(parseFloat(v.replace(',', '.'))).toFixed(10)))
+  );
+  r = r.replace(/raiz\s+cubica\s+de?\s*(\d+(?:[.,]\d+)?)/g, (_, v) =>
+    String(Number(Math.cbrt(parseFloat(v.replace(',', '.'))).toFixed(10)))
+  );
+  return r;
+}
+
+function avaliarExpressao(tokens: string[]): number {
+  const ops: string[] = [];
+  const vals: number[] = [];
+
+  function aplicar() {
+    const op = ops.pop()!;
+    const b = vals.pop()!;
+    const a = vals.pop()!;
+    switch (op) {
+      case '+': vals.push(a + b); break;
+      case '-': vals.push(a - b); break;
+      case '*': vals.push(a * b); break;
+      case '/':
+        if (b === 0) throw new Error('Divisao por zero');
+        vals.push(a / b);
+        break;
+    }
+  }
+
+  const prec: Record<string, number> = { '+': 1, '-': 1, '*': 2, '/': 2 };
+
+  for (const token of tokens) {
+    if (token in prec) {
+      while (ops.length && prec[ops[ops.length - 1]] >= prec[token]) {
+        aplicar();
+      }
+      ops.push(token);
+    } else {
+      const n = parseFloat(token);
+      if (!isNaN(n)) vals.push(n);
+    }
+  }
+
+  while (ops.length) aplicar();
+  return vals[0];
+}
+
 export function processarComando(texto: string): ResultadoProcessamento {
   if (!texto || texto.trim().length === 0) {
     return { tipo: 'erro', mensagem: 'Nenhum texto capturado' };
@@ -140,6 +197,8 @@ export function processarComando(texto: string): ResultadoProcessamento {
   if (temp) return temp;
 
   let processado = substituirPalavrasNumeros(texto);
+
+  processado = resolverPotenciasERaizes(processado);
 
   processado = processado
     .replace(/mais/g, '+')
@@ -156,51 +215,40 @@ export function processarComando(texto: string): ResultadoProcessamento {
 
   processado = processado.replace(/[^0-9+\-*/().]/g, ' ').replace(/\s+/g, ' ').trim();
 
-  const partes = processado.split(' ').filter(Boolean);
+  const tokens = processado.split(/\s+/).filter(Boolean);
 
-  if (partes.length < 3) {
+  if (tokens.length === 1) {
+    const unico = parseFloat(tokens[0]);
+    if (!isNaN(unico)) {
+      return { tipo: 'conta', expressao: tokens[0], resultado: unico };
+    }
+    return { tipo: 'nao_entendi', mensagem: 'Erro, tente novamente' };
+  }
+
+  if (tokens.length < 3) {
     return { tipo: 'nao_entendi', mensagem: 'Erro, tente novamente' };
   }
 
   const numeros: number[] = [];
   const operadores: string[] = [];
 
-  for (const parte of partes) {
-    if (['+', '-', '*', '/'].includes(parte)) {
-      operadores.push(parte);
+  for (const token of tokens) {
+    if (['+', '-', '*', '/'].includes(token)) {
+      operadores.push(token);
     } else {
-      const n = parseFloat(parte);
-      if (!isNaN(n)) {
-        numeros.push(n);
-      }
+      const n = parseFloat(token);
+      if (!isNaN(n)) numeros.push(n);
     }
   }
 
   if (numeros.length < 2 || operadores.length < 1) {
-    return { tipo: 'nao_entendi', mensagem: 'Erro, tente novamente"' };
+    return { tipo: 'nao_entendi', mensagem: 'Erro, tente novamente' };
   }
 
   const expressao = numeros.map((n, i) => `${n} ${operadores[i] || ''}`).join(' ').trim();
 
   try {
-    let resultado = numeros[0];
-    for (let i = 0; i < operadores.length; i++) {
-      const proximo = numeros[i + 1];
-      if (proximo === undefined) break;
-
-      switch (operadores[i]) {
-        case '+': resultado += proximo; break;
-        case '-': resultado -= proximo; break;
-        case '*': resultado *= proximo; break;
-        case '/':
-          if (proximo === 0) {
-            return { tipo: 'erro', mensagem: 'Divisao por zero' };
-          }
-          resultado /= proximo;
-          break;
-      }
-    }
-
+    const resultado = avaliarExpressao(tokens);
     return { tipo: 'conta', expressao, resultado };
   } catch {
     return { tipo: 'erro', mensagem: 'Erro ao calcular' };
