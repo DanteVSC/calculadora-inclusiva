@@ -56,11 +56,17 @@ function substituirPalavrasNumeros(texto: string): string {
     resultado = resultado.replace(new RegExp(`\\b${palavra}\\b`, 'g'), String(valor));
   }
 
-  resultado = resultado.replace(/(\d+(?:\s*e\s*\d+)*)\s*mil\s+e\s+(\d+)/g, (_, compound, resto) => {
+  resultado = resultado.replace(/(\d+(?:\s*e\s*\d+)*)\s*(?:milhao|milhoes)\b/g, (_, compound) => {
+    const sum = compound.split(/\s*e\s*/).reduce((acc: number, n: string) => acc + Number(n), 0);
+    return String(sum * 1000000);
+  });
+  resultado = resultado.replace(/(?<!\d)\s*(?:milhao|milhoes)\b/g, '1000000');
+
+  resultado = resultado.replace(/(\d{1,6}(?:\s*e\s*\d{1,6})*)\s*mil\s+e\s+(\d+)/g, (_, compound, resto) => {
     const sum = compound.split(/\s*e\s*/).reduce((acc: number, n: string) => acc + Number(n), 0);
     return String(sum * 1000 + Number(resto));
   });
-  resultado = resultado.replace(/(\d+(?:\s*e\s*\d+)*)\s*mil\b/g, (_, compound) => {
+  resultado = resultado.replace(/(\d{1,6}(?:\s*e\s*\d{1,6})*)\s*mil\b/g, (_, compound) => {
     const sum = compound.split(/\s*e\s*/).reduce((acc: number, n: string) => acc + Number(n), 0);
     return String(sum * 1000);
   });
@@ -71,6 +77,7 @@ function substituirPalavrasNumeros(texto: string): string {
   while (anterior !== resultado) {
     anterior = resultado;
     resultado = resultado.replace(/(\d+)\s*e\s*(\d+)/g, (_, a, b) => String(Number(a) + Number(b)));
+    resultado = resultado.replace(/(\d+)\s+(\d+)/g, (_, a, b) => String(Number(a) + Number(b)));
   }
 
   return resultado;
@@ -144,6 +151,8 @@ export function processarComando(texto: string): ResultadoProcessamento {
     .replace(/multiplicar/g, '*')
     .replace(/subtrair/g, '-')
     .replace(/por(?=\s*\d)/g, '*');
+
+  processado = processado.replace(/\.(\d{3})(?=\D|$)/g, '$1');
 
   processado = processado.replace(/[^0-9+\-*/().]/g, ' ').replace(/\s+/g, ' ').trim();
 
