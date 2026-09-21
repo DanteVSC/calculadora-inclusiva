@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Platform } from 'react-native';
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 
 type ReconhecimentoVozTipo = {
   ouvindo: boolean;
@@ -26,54 +27,39 @@ export function usarVoz(): ReconhecimentoVozTipo {
   const [textoParcial, setTextoParcial] = useState('');
   const [erro, setErro] = useState<string | null>(null);
 
-  const reconhecimentoRef = useRef<any>(null);
-
   const suportado = WEB
     ? typeof window !== 'undefined' &&
       !!(window.SpeechRecognition || window.webkitSpeechRecognition)
     : true;
 
-  useEffect(() => {
-    if (WEB || !suportado) return;
+  useSpeechRecognitionEvent('start', () => {
+    setOuvindo(true);
+    setErro(null);
+  });
 
-    const Voice = require('@react-native-voice/voice').default;
+  useSpeechRecognitionEvent('end', () => {
+    setOuvindo(false);
+    setTextoParcial('');
+  });
 
-    const onInicio = () => {
-      setOuvindo(true);
-      setErro(null);
-    };
+  useSpeechRecognitionEvent('result', (event) => {
+    if (event.results.length > 0) {
+      const r = event.results[0];
+      if (event.isFinal) {
+        setTexto(r.transcript);
+        setTextoParcial('');
+      } else {
+        setTextoParcial(r.transcript);
+      }
+    }
+  });
 
-    const onFim = () => {
-      setOuvindo(false);
-      setTextoParcial('');
-    };
+  useSpeechRecognitionEvent('error', (event) => {
+    setErro(event.error);
+    setOuvindo(false);
+  });
 
-    const onResultado = (e: any) => {
-      setTexto(e.value[0] || '');
-      setTextoParcial('');
-    };
-
-    const onParcial = (e: any) => {
-      setTextoParcial(e.value[0] || '');
-    };
-
-    const onErro = (e: any) => {
-      setErro(String(e.error));
-      setOuvindo(false);
-    };
-
-    Voice.onSpeechStart = onInicio;
-    Voice.onSpeechEnd = onFim;
-    Voice.onSpeechResults = onResultado;
-    Voice.onSpeechPartialResults = onParcial;
-    Voice.onSpeechError = onErro;
-
-    return () => {
-      Voice.destroy().then(Voice.removeAllListeners);
-    };
-  }, [suportado]);
-
-  const iniciar = useCallback(() => {
+  const iniciar = useCallback(async () => {
     setTexto('');
     setTextoParcial('');
     setErro(null);
@@ -124,16 +110,22 @@ export function usarVoz(): ReconhecimentoVozTipo {
         setTextoParcial('');
       };
 
-      reconhecimentoRef.current = recognition;
-
       try {
         recognition.start();
       } catch {
-        reconhecimentoRef.current = null;
+        setErro('Erro ao iniciar reconhecimento');
       }
     } else {
-      const Voice = require('@react-native-voice/voice').default;
-      Voice.start('pt-BR');
+      const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!perm.granted) {
+        setErro('Permissão de microfone negada');
+        return;
+      }
+      ExpoSpeechRecognitionModule.start({
+        lang: 'pt-BR',
+        interimResults: true,
+        continuous: true,
+      });
     }
   }, []);
 
@@ -142,13 +134,13 @@ export function usarVoz(): ReconhecimentoVozTipo {
     setTextoParcial('');
 
     if (WEB) {
-      if (reconhecimentoRef.current) {
-        reconhecimentoRef.current.stop();
-        reconhecimentoRef.current = null;
+      const recognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (recognition) {
+        try { recognition.stop(); } catch {}
       }
     } else {
-      const Voice = require('@react-native-voice/voice').default;
-      Voice.stop();
+      ExpoSpeechRecognitionModule.stop();
     }
   }, [textoParcial]);
 

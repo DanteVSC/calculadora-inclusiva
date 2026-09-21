@@ -56,9 +56,18 @@ function substituirPalavrasNumeros(texto: string): string {
     resultado = resultado.replace(new RegExp(`\\b${palavra}\\b`, 'g'), String(valor));
   }
 
-  resultado = resultado.replace(/(\d+(?:\s*e\s*\d+)*)\s*(?:milhao|milhoes)\b/g, (_, compound) => {
-    const sum = compound.split(/\s*e\s*/).reduce((acc: number, n: string) => acc + Number(n), 0);
-    return String(sum * 1000000);
+  resultado = resultado.replace(/(\d+(?:\s*e\s*\d+)*)\s*(?:milhao|milhoes)(?:\s+\d+)*/g, (match) => {
+    const parts = match.split(/\s+/);
+    const main: string[] = [];
+    let foundMillion = false;
+    const trailing: string[] = [];
+    for (const p of parts) {
+      if (p === 'milhao' || p === 'milhoes') { foundMillion = true; continue; }
+      if (!foundMillion) main.push(p);
+      else if (/^\d+$/.test(p)) trailing.push(p);
+    }
+    const sum = main.reduce((a, n) => a + Number(n), 0);
+    return String(sum * 1000000 + trailing.reduce((a, n) => a * 1000 + Number(n), 0));
   });
   resultado = resultado.replace(/(?<!\d)\s*(?:milhao|milhoes)\b/g, '1000000');
 
@@ -201,6 +210,8 @@ export function processarComando(texto: string): ResultadoProcessamento {
   processado = resolverPotenciasERaizes(processado);
 
   processado = processado
+    .replace(/dividido\s+por/g, '/')
+    .replace(/dividir\s+por/g, '/')
     .replace(/mais/g, '+')
     .replace(/menos/g, '-')
     .replace(/vezes/g, '*')
