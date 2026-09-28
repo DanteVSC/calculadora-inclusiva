@@ -43,3 +43,7 @@ app-example
 # generated native folders
 /ios
 /android
+
+# agent docs (local only)
+AGENTS.md
+agents.md

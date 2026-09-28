@@ -1,3 +1,5 @@
+import { GATILHOS, MENSAGENS, TopicoAjuda } from '../constantes/mensagens';
+
 const PALAVRAS_NUMEROS: Record<string, number> = {
   zero: 0, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4,
   cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10,
@@ -93,10 +95,11 @@ function substituirPalavrasNumeros(texto: string): string {
 }
 
 export type ResultadoProcessamento = {
-  tipo: 'conta' | 'temperatura' | 'erro' | 'nao_entendi';
+  tipo: 'conta' | 'temperatura' | 'erro' | 'nao_entendi' | 'ajuda';
   expressao?: string;
   resultado?: number | string;
   mensagem?: string;
+  topico?: TopicoAjuda;
 };
 
 const UNIDADES_TEMP: Record<string, string> = {
@@ -108,6 +111,29 @@ const UNIDADES_TEMP: Record<string, string> = {
 const SIMBOLOS_TEMP: Record<string, string> = {
   C: '°C', F: '°F', K: 'K',
 };
+
+const NOMES_TEMP: Record<string, string> = {
+  C: 'Celsius', F: 'Fahrenheit', K: 'Kelvin',
+};
+
+function detectarAjuda(texto: string): ResultadoProcessamento | null {
+  const normalizado = normalizar(texto)
+    .replace(/[-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalizado) return null;
+
+  for (const topico of Object.keys(GATILHOS) as TopicoAjuda[]) {
+    for (const gatilho of GATILHOS[topico]) {
+      const regex = new RegExp(`(^|\\s)${gatilho}(\\s|$)`);
+      if (regex.test(normalizado)) {
+        return { tipo: 'ajuda', topico, mensagem: MENSAGENS[topico] };
+      }
+    }
+  }
+
+  return null;
+}
 
 function converterTemperatura(texto: string): ResultadoProcessamento | null {
   const t = substituirPalavrasNumeros(texto);
@@ -202,6 +228,9 @@ export function processarComando(texto: string): ResultadoProcessamento {
     return { tipo: 'erro', mensagem: 'Nenhum texto capturado' };
   }
 
+  const ajuda = detectarAjuda(texto);
+  if (ajuda) return ajuda;
+
   const temp = converterTemperatura(texto);
   if (temp) return temp;
 
@@ -265,3 +294,43 @@ export function processarComando(texto: string): ResultadoProcessamento {
     return { tipo: 'erro', mensagem: 'Erro ao calcular' };
   }
 }
+
+function numeroPorExtenso(valor: number | string): string {
+  return String(valor).replace('.', ',');
+}
+
+export function formatarParaFala(resultado: ResultadoProcessamento): string {
+  if (resultado.tipo === 'conta') {
+    const expressao = String(resultado.expressao ?? '');
+    const valor = numeroPorExtenso(resultado.resultado ?? '');
+
+    if (!expressao || expressao === String(resultado.resultado)) {
+      return `O resultado é ${valor}`;
+    }
+
+    const porExtenso = expressao
+      .replace(/\s*\+\s*/g, ' mais ')
+      .replace(/\s*-\s*/g, ' menos ')
+      .replace(/\s*\*\s*/g, ' vezes ')
+      .replace(/\s*\/\s*/g, ' dividido por ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return `${numeroPorExtenso(porExtenso)} é ${valor}`;
+  }
+
+  if (resultado.tipo === 'temperatura') {
+    const partes = String(resultado.expressao ?? '').match(/^([\d.,]+)\s*°?\s*([CFK])\s*→\s*([CFK])$/);
+    if (partes) {
+      const valor = numeroPorExtenso(partes[1]);
+      const de = NOMES_TEMP[partes[2]];
+      const para = NOMES_TEMP[partes[3]];
+      return `${valor} graus ${de} para ${para} é ${numeroPorExtenso(resultado.resultado ?? '')} graus ${para}`;
+    }
+  }
+
+  if (resultado.mensagem) return resultado.mensagem;
+
+  return 'Erro';
+}
+
