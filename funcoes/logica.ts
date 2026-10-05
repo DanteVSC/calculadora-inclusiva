@@ -29,6 +29,11 @@ function palavraParaNumero(palavra: string): number | null {
   return null;
 }
 
+const CONSTANTES: Record<string, number> = {
+  pi: Math.PI,
+  euler: Math.E,
+};
+
 function normalizar(texto: string): string {
   return texto
     .toLowerCase()
@@ -51,6 +56,21 @@ function removerSeparadoresMilhar(texto: string): string {
     /(?<![\d.])[1-9]\d{0,2}(?:\.\d{3})+(?![\d.])/g,
     (trecho) => trecho.replace(/\./g, ''),
   );
+}
+
+function substituirConstantes(texto: string): string {
+  // Roda DEPOIS de substituirPalavrasNumeros: lá dentro o "e" vira soma
+  // ("mil e quinhentos"), então "pi e dois" não pode ser interpretado assim aqui.
+  let resultado = texto;
+
+  for (const [nome, valor] of Object.entries(CONSTANTES)) {
+    resultado = resultado.replace(
+      new RegExp(`\\b${nome}\\b`, 'gi'),
+      String(valor),
+    );
+  }
+
+  return resultado.replace(/π/g, String(CONSTANTES.pi));
 }
 
 function substituirPalavrasNumeros(texto: string): string {
@@ -264,7 +284,7 @@ export function processarComando(texto: string): ResultadoProcessamento {
   const temp = converterTemperatura(texto);
   if (temp) return temp;
 
-  let processado = substituirPalavrasNumeros(texto);
+  let processado = substituirConstantes(substituirPalavrasNumeros(texto));
 
   processado = resolverPotenciasERaizes(processado);
 

@@ -115,6 +115,33 @@ describe('conversao de temperatura', () => {
   });
 });
 
+describe('constantes matematicas', () => {
+  it('resolve pi e o simbolo π', () => {
+    assert.equal(contar('pi'), Math.PI);
+    assert.equal(contar('π'), Math.PI);
+    assert.ok(Math.abs(contar('pi vezes 2') - 2 * Math.PI) < 1e-10);
+  });
+
+  it('resolve euler', () => {
+    assert.equal(contar('euler'), Math.E);
+    assert.ok(Math.abs(contar('euler mais um') - (Math.E + 1)) < 1e-10);
+  });
+
+  it('funciona com potencias e raizes', () => {
+    assert.ok(Math.abs(contar('pi ao quadrado') - Math.PI ** 2) < 1e-6);
+    assert.ok(Math.abs(contar('raiz quadrada de pi') - Math.sqrt(Math.PI)) < 1e-6);
+  });
+
+  it('nao substitui dentro de outras palavras', () => {
+    assert.equal(calcular('piramide mais um').tipo, 'nao_entendi');
+  });
+
+  it('nao confunde o "e" da soma com euler', () => {
+    assert.equal(contar('dois e tres'), 5);
+    assert.equal(contar('mil e quinhentos'), 1500);
+  });
+});
+
 describe('ajuda', () => {
   it('reconhece os gatilhos de cada topico', () => {
     assert.equal(topicoDe('como usar'), 'como-usar');
