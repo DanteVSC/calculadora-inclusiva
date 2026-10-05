@@ -36,8 +36,25 @@ function normalizar(texto: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+function normalizarDecimais(texto: string): string {
+  // "2,5", "2 virgula 5" e "2 ponto 5" viram "2.5".
+  return texto.replace(
+    /(\d)\s*(?:virgula|ponto|,)\s*(?=\d)/g,
+    (_trecho, inteiro: string) => `${inteiro}.`,
+  );
+}
+
+function removerSeparadoresMilhar(texto: string): string {
+  // Em pt-BR o ponto é separador de milhar: "1.500" = 1500, mas "0.125"
+  // (zero à esquerda) e "2.5" são decimais e ficam intactos.
+  return texto.replace(
+    /(?<![\d.])[1-9]\d{0,2}(?:\.\d{3})+(?![\d.])/g,
+    (trecho) => trecho.replace(/\./g, ''),
+  );
+}
+
 function substituirPalavrasNumeros(texto: string): string {
-  let resultado = normalizar(texto);
+  let resultado = removerSeparadoresMilhar(normalizar(texto));
 
   const compostos: Record<string, number> = {
     'onze': 11, 'doze': 12, 'treze': 13, 'catorze': 14, 'quinze': 15,
@@ -91,7 +108,7 @@ function substituirPalavrasNumeros(texto: string): string {
     resultado = resultado.replace(/(\d+)\s+(\d+)/g, (_, a, b) => String(Number(a) + Number(b)));
   }
 
-  return resultado;
+  return normalizarDecimais(resultado);
 }
 
 export type ResultadoProcessamento = {
@@ -186,14 +203,20 @@ function resolverPotenciasERaizes(texto: string): string {
   return r;
 }
 
+const TOKEN_NUMERO = /^-?\d+(?:\.\d+)?$/;
+const OPERADORES = ['+', '-', '*', '/'];
+
 function avaliarExpressao(tokens: string[]): number {
   const ops: string[] = [];
   const vals: number[] = [];
 
   function aplicar() {
-    const op = ops.pop()!;
-    const b = vals.pop()!;
-    const a = vals.pop()!;
+    const op = ops.pop();
+    const b = vals.pop();
+    const a = vals.pop();
+    if (op === undefined || a === undefined || b === undefined) {
+      throw new Error('Expressao incompleta');
+    }
     switch (op) {
       case '+': vals.push(a + b); break;
       case '-': vals.push(a - b); break;
@@ -202,24 +225,31 @@ function avaliarExpressao(tokens: string[]): number {
         if (b === 0) throw new Error('Divisao por zero');
         vals.push(a / b);
         break;
+      default:
+        throw new Error('Operador desconhecido');
     }
   }
 
   const prec: Record<string, number> = { '+': 1, '-': 1, '*': 2, '/': 2 };
 
   for (const token of tokens) {
-    if (token in prec) {
+    if (TOKEN_NUMERO.test(token)) {
+      vals.push(parseFloat(token));
+    } else if (OPERADORES.includes(token)) {
       while (ops.length && prec[ops[ops.length - 1]] >= prec[token]) {
         aplicar();
       }
       ops.push(token);
     } else {
-      const n = parseFloat(token);
-      if (!isNaN(n)) vals.push(n);
+      throw new Error('Trecho invalido na expressao');
     }
   }
 
   while (ops.length) aplicar();
+
+  if (vals.length !== 1 || !Number.isFinite(vals[0])) {
+    throw new Error('Expressao invalida');
+  }
   return vals[0];
 }
 
@@ -251,21 +281,19 @@ export function processarComando(texto: string): ResultadoProcessamento {
     .replace(/subtrair/g, '-')
     .replace(/por(?=\s*\d)/g, '*');
 
-  processado = processado.replace(/\.(\d{3})(?=\D|$)/g, '$1');
-
+  processado = processado.replace(/([+\-*/()])/g, ' $1 ');
   processado = processado.replace(/[^0-9+\-*/().]/g, ' ').replace(/\s+/g, ' ').trim();
 
   const tokens = processado.split(/\s+/).filter(Boolean);
 
-  if (tokens.length === 1) {
-    const unico = parseFloat(tokens[0]);
-    if (!isNaN(unico)) {
-      return { tipo: 'conta', expressao: tokens[0], resultado: unico };
-    }
+  if (tokens.length === 0) {
     return { tipo: 'nao_entendi', mensagem: 'Erro, tente novamente' };
   }
 
-  if (tokens.length < 3) {
+  if (tokens.length === 1) {
+    if (TOKEN_NUMERO.test(tokens[0])) {
+      return { tipo: 'conta', expressao: tokens[0], resultado: parseFloat(tokens[0]) };
+    }
     return { tipo: 'nao_entendi', mensagem: 'Erro, tente novamente' };
   }
 
@@ -273,19 +301,23 @@ export function processarComando(texto: string): ResultadoProcessamento {
   const operadores: string[] = [];
 
   for (const token of tokens) {
-    if (['+', '-', '*', '/'].includes(token)) {
+    if (OPERADORES.includes(token)) {
       operadores.push(token);
+    } else if (TOKEN_NUMERO.test(token)) {
+      numeros.push(parseFloat(token));
     } else {
-      const n = parseFloat(token);
-      if (!isNaN(n)) numeros.push(n);
+      return { tipo: 'nao_entendi', mensagem: 'Erro, tente novamente' };
     }
   }
 
-  if (numeros.length < 2 || operadores.length < 1) {
+  if (numeros.length < 2 || operadores.length !== numeros.length - 1) {
     return { tipo: 'nao_entendi', mensagem: 'Erro, tente novamente' };
   }
 
-  const expressao = numeros.map((n, i) => `${n} ${operadores[i] || ''}`).join(' ').trim();
+  const expressao = numeros
+    .map((n, i) => (i < operadores.length ? `${n} ${operadores[i]}` : String(n)))
+    .join(' ')
+    .trim();
 
   try {
     const resultado = avaliarExpressao(tokens);

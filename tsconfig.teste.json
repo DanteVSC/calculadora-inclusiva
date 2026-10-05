@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "outDir": ".teste-gerado",
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["funcoes/**/*.ts", "constantes/**/*.ts", "testes/**/*.ts"]
+}

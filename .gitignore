@@ -38,6 +38,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# testes (gerado pelo npm run testar)
+.teste-gerado/
+
 app-example
 
 # generated native folders

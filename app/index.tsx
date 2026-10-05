@@ -1,8 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { AreaTranscricao } from '../componentes/area-transcricao';
+import { BotaoMicrofone } from '../componentes/botao-microfone';
+import { Cabecalho } from '../componentes/cabecalho';
+import { PainelAjuda } from '../componentes/painel-ajuda';
+import { VisorResultado } from '../componentes/visor-resultado';
 import { Cores } from '../constantes/cores';
-import { AMOSTRA_VOZ, BOTOES_AJUDA, MENSAGENS, ROTULOS, TopicoAjuda } from '../constantes/mensagens';
+import { AMOSTRA_VOZ, MENSAGENS, TopicoAjuda } from '../constantes/mensagens';
 import { formatarParaFala, processarComando, ResultadoProcessamento } from '../funcoes/logica';
 import { usarFala } from '../hooks/usar-fala';
 import { usarIntro } from '../hooks/usar-intro';
@@ -28,6 +32,7 @@ export default function Index() {
   resultadoRef.current = resultado;
 
   const textoExibicao = textoParcial || texto;
+  const aviso = erro || (!suportado ? 'Reconhecimento de voz não suportado neste dispositivo' : null);
 
   const aplicarResultado = useCallback(
     (res: ResultadoProcessamento) => {
@@ -95,129 +100,52 @@ export default function Index() {
 
   return (
     <View style={[styles.container, { backgroundColor: cores.fundo }]}>
-      <View style={[styles.header, { backgroundColor: cores.primaria }]}>
-        <Pressable onPress={inverterTema} accessibilityLabel="Trocar tema">
-          <Ionicons name={tema == 'claro' ? 'moon-outline' : 'sunny-outline' } size={24} color={cores.fundo} />
-        </Pressable>
-        <Text style={[styles.headerTitle, { color: cores.fundo }]}>Calculadora</Text>
-        <Pressable
-          onPress={() => setMostrarAjuda((atual) => !atual)}
-          accessibilityLabel="Ajuda"
-          accessibilityRole="button"
-        >
-          <Ionicons name="help-circle-outline" size={26} color={cores.fundo} />
-        </Pressable>
-      </View>
+      <Cabecalho
+        cores={cores}
+        tema={tema}
+        aoInverterTema={inverterTema}
+        aoAlternarAjuda={() => setMostrarAjuda((atual) => !atual)}
+      />
 
       {mostrarAjuda && (
-        <View style={[styles.painelAjuda, { backgroundColor: cores.primaria }]}>
-          {BOTOES_AJUDA.map((topico) => (
-            <Pressable
-              key={topico}
-              style={[styles.botaoAjuda, { backgroundColor: cores.fundo }]}
-              onPress={() => falarTopico(topico)}
-              accessibilityRole="button"
-              accessibilityLabel={ROTULOS[topico]}
-            >
-              <Text style={[styles.botaoAjudaTexto, { color: cores.texto }]}>
-                {ROTULOS[topico]}
-              </Text>
-            </Pressable>
-          ))}
-
-          {vozes.length > 1 && (
-            <Pressable
-              style={[styles.botaoAjuda, styles.botaoAjudaAudio, { backgroundColor: cores.fundo }]}
-              onPress={handleProximaVoz}
-              accessibilityRole="button"
-              accessibilityLabel={`Trocar voz. Voz atual: ${vozAtual?.nome || 'padrão'}`}
-            >
-              <Text style={[styles.botaoAjudaTexto, { color: cores.texto }]}>Voz</Text>
-              <Text style={[styles.botaoAjudaValor, { color: cores.texto }]} numberOfLines={1}>
-                {vozAtual?.nome || 'Padrão'}
-              </Text>
-            </Pressable>
-          )}
-
-          <Pressable
-            style={[styles.botaoAjuda, styles.botaoAjudaAudio, { backgroundColor: cores.fundo }]}
-            onPress={handleProximaVelocidade}
-            accessibilityRole="button"
-            accessibilityLabel={`Velocidade da fala: ${velocidade.toFixed(1).replace('.', ',')} vezes`}
-          >
-            <Text style={[styles.botaoAjudaTexto, { color: cores.texto }]}>Velocidade</Text>
-            <Text style={[styles.botaoAjudaValor, { color: cores.texto }]}>
-              {velocidade.toFixed(1).replace('.', ',')}×
-            </Text>
-          </Pressable>
-        </View>
+        <PainelAjuda
+          cores={cores}
+          vozes={vozes}
+          vozAtual={vozAtual}
+          velocidade={velocidade}
+          aoEscolherTopico={falarTopico}
+          aoTrocarVoz={handleProximaVoz}
+          aoTrocarVelocidade={handleProximaVelocidade}
+        />
       )}
 
-      <View style={[styles.banner, { backgroundColor: cores.secundaria }]}>
-        <Text style={styles.bannerLabel}>Escutando usuário:</Text>
-        {ouvindo ? (
-          <Text style={styles.bannerText}>
-            "{textoExibicao || '...'}"
-          </Text>
-        ) : editando ? (
-          <TextInput
-            style={styles.bannerInput}
-            placeholder="Conta ou conversão de temperatura..."
-            placeholderTextColor="#ffffff99"
-            value={textoDigitado}
-            onChangeText={setTextoDigitado}
-            onSubmitEditing={handleEnviarTexto}
-            onBlur={() => setEditando(false)}
-            autoFocus
-            returnKeyType="send"
-          />
-        ) : (
-          <Pressable onPress={() => setEditando(true)}>
-            <Text style={styles.bannerText}>
-              "{textoLegenda || 'Pressione o microfone para gravar e solte quando terminar'}"
-            </Text>
-          </Pressable>
-        )}
-      </View>
+      <AreaTranscricao
+        cores={cores}
+        ouvindo={ouvindo}
+        editando={editando}
+        textoExibicao={textoExibicao}
+        textoLegenda={textoLegenda}
+        textoDigitado={textoDigitado}
+        aoDigitado={setTextoDigitado}
+        aoEnviar={handleEnviarTexto}
+        aoEditar={() => setEditando(true)}
+        aoSairDaEdicao={() => setEditando(false)}
+      />
 
-      <View style={[styles.visor, { backgroundColor: cores.fundo, borderColor: cores.texto }]}>
-        <Text style={[styles.visorLabel, { color: cores.texto }]}>Resultado:</Text>
-        <Text
-          style={[
-            resultado?.tipo === 'ajuda' ? styles.visorTextoMenor : styles.visorTexto,
-            { color: cores.texto },
-          ]}
-        >
-          {resultado?.tipo === 'conta' || resultado?.tipo === 'temperatura'
-            ? `${resultado.expressao} = ${resultado.resultado}`
-            : resultado?.mensagem || ''}
-        </Text>
-      </View>
+      <VisorResultado cores={cores} resultado={resultado} />
 
-      <View style={styles.micArea}>
-        <Pressable
-          style={[
-            styles.micButton,
-            {
-              backgroundColor: ouvindo ? '#d84315' : cores.secundaria,
-            },
-          ]}
-          onPressIn={() => {
-            pararFala();
-            iniciar();
-          }}
-          onPressOut={handleParar}
-          accessibilityLabel="Microfone"
-          accessibilityRole="button"
-        >
-          <Ionicons name={ouvindo ? "ellipse-outline" : "mic"} size={80} color="#fff" />
-        </Pressable>
-      </View>
+      <BotaoMicrofone
+        cores={cores}
+        ouvindo={ouvindo}
+        aoPressionar={() => {
+          pararFala();
+          iniciar();
+        }}
+        aoSoltar={handleParar}
+      />
 
-      {erro && (
-        <Text style={[styles.erro, { color: '#ff4444' }]}>
-          Erro: {erro}
-        </Text>
+      {aviso && (
+        <Text style={[styles.erro, { color: cores.erro }]}>Erro: {aviso}</Text>
       )}
     </View>
   );
@@ -226,109 +154,6 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 48,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  banner: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 8,
-    padding: 16,
-    minHeight: 80,
-  },
-  visor: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 16,
-    minHeight: 80,
-  },
-  visorLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  visorTexto: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    fontStyle: 'italic',
-  },
-  visorTextoMenor: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  painelAjuda: {
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    paddingVertical: 12,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  botaoAjuda: {
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#00000033',
-  },
-  botaoAjudaTexto: {
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  botaoAjudaAudio: {
-    maxWidth: 190,
-    gap: 2,
-  },
-  botaoAjudaValor: {
-    fontSize: 13,
-  },
-  bannerLabel: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  bannerText: {
-    color: '#fff',
-    fontSize: 20,
-    fontStyle: 'italic',
-  },
-  bannerInput: {
-    color: '#fff',
-    fontSize: 20,
-    fontStyle: 'italic',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ffffff66',
-    paddingVertical: 4,
-  },
-  micArea: {
-    flex: 1,
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 8,
-    padding: 60,
-    minHeight: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  micButton: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   erro: {
     position: 'absolute',

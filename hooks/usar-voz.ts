@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 
@@ -26,6 +26,8 @@ export function usarVoz(): ReconhecimentoVozTipo {
   const [texto, setTexto] = useState('');
   const [textoParcial, setTextoParcial] = useState('');
   const [erro, setErro] = useState<string | null>(null);
+
+  const reconhecimentoRef = useRef<{ stop: () => void } | null>(null);
 
   const suportado = WEB
     ? typeof window !== 'undefined' &&
@@ -101,18 +103,23 @@ export function usarVoz(): ReconhecimentoVozTipo {
       };
 
       recognition.onerror = (event: any) => {
+        reconhecimentoRef.current = null;
         setErro(event.error);
         setOuvindo(false);
       };
 
       recognition.onend = () => {
+        reconhecimentoRef.current = null;
         setOuvindo(false);
         setTextoParcial('');
       };
 
+      reconhecimentoRef.current = recognition;
+
       try {
         recognition.start();
       } catch {
+        reconhecimentoRef.current = null;
         setErro('Erro ao iniciar reconhecimento');
       }
     } else {
@@ -134,11 +141,14 @@ export function usarVoz(): ReconhecimentoVozTipo {
     setTextoParcial('');
 
     if (WEB) {
-      const recognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (recognition) {
-        try { recognition.stop(); } catch {}
+      // Precisa parar a MESMA instância criada em iniciar(); uma nova instância
+      // nunca foi iniciada e o stop() dela não encerra nada.
+      try {
+        reconhecimentoRef.current?.stop();
+      } catch {
+        // navegador sem suporte a parada do reconhecimento
       }
+      reconhecimentoRef.current = null;
     } else {
       ExpoSpeechRecognitionModule.stop();
     }

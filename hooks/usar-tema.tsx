@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useContext, useState } from 'react';
 
-type TemaTipo = "claro" | "escuro";
+export type TemaTipo = "claro" | "escuro";
 
 type TemaContextoTipo = {
   tema: TemaTipo;
