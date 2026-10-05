@@ -9,8 +9,8 @@ type VisorResultadoTipo = {
 
 export function VisorResultado({ cores, resultado }: VisorResultadoTipo) {
   const texto =
-    resultado?.tipo === 'conta' || resultado?.tipo === 'temperatura'
-      ? `${resultado.expressao} = ${resultado.resultado}`
+    resultado?.tipo === 'conta' || resultado?.tipo === 'temperatura' || resultado?.tipo === 'conversao'
+      ? `${resultado.expressao} = ${resultado.resultado}${resultado.unidadeSaida ? ` ${resultado.unidadeSaida}` : ''}`
       : resultado?.mensagem || '';
 
   return (

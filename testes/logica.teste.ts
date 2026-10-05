@@ -103,6 +103,8 @@ describe('conversao de temperatura', () => {
     const resultado = calcular('trinta graus celsius para fahrenheit');
     assert.equal(resultado.tipo, 'temperatura');
     assert.equal(resultado.resultado, 86);
+    assert.equal(resultado.expressao, '30°C → °F');
+    assert.equal(resultado.unidadeSaida, '°F');
   });
 
   it('converte os seis pares possiveis', () => {
@@ -112,6 +114,101 @@ describe('conversao de temperatura', () => {
     assert.equal(contarTemperatura('0 kelvin para fahrenheit'), -459.67);
     assert.equal(contarTemperatura('100 celsius para kelvin'), 373.15);
     assert.equal(contarTemperatura('32 fahrenheit para kelvin'), 273.15);
+  });
+});
+
+describe('conversao de unidades', () => {
+  it('converte tempo', () => {
+    assert.equal(contarConversao('duas horas para minutos'), 120);
+    assert.equal(contarConversao('3 dias para horas'), 72);
+    assert.equal(contarConversao('uma semana para dias'), 7);
+    assert.equal(contarConversao('1 mes para dias'), 30);
+    assert.equal(contarConversao('1 ano para dias'), 365);
+    assert.equal(contarConversao('cinquenta minutos para segundos'), 3000);
+  });
+
+  it('converte comprimento', () => {
+    assert.equal(contarConversao('5 m para cm'), 500);
+    assert.equal(contarConversao('2,5 km para m'), 2500);
+    assert.equal(contarConversao('100 centimetros para metros'), 1);
+    assert.equal(contarConversao('5 metros em centimetros'), 500);
+  });
+
+  it('converte velocidade', () => {
+    assert.equal(contarConversao('36 km/h para m/s'), 10);
+    assert.equal(contarConversao('10 m/s para km/h'), 36);
+    assert.equal(contarConversao('72 quilometros por hora para metros por segundo'), 20);
+    assert.equal(contarConversao('5 m/s para km/h'), 18);
+  });
+
+  it('converte massa', () => {
+    assert.equal(contarConversao('2 kg para g'), 2000);
+    assert.equal(contarConversao('0,5 tonelada para quilos'), 500);
+    assert.equal(contarConversao('cinquenta quilos para gramas'), 50000);
+  });
+
+  it('converte area', () => {
+    assert.equal(contarConversao('1 hectare para metros quadrados'), 10000);
+    assert.equal(contarConversao('2 km2 para m2'), 2000000);
+    assert.equal(contarConversao('2500 centimetros quadrados para metros quadrados'), 0.25);
+  });
+
+  it('converte dados na escala binaria', () => {
+    assert.equal(contarConversao('1 GB para MB'), 1024);
+    assert.equal(contarConversao('1 TB para GB'), 1024);
+    assert.equal(contarConversao('1 KB para B'), 1024);
+    assert.equal(contarConversao('8 bits para bytes'), 1);
+    assert.equal(contarConversao('2,5 KB para B'), 2560);
+    assert.equal(contarConversao('1 B para KB'), 0.0009765625);
+  });
+
+  it('converte volume', () => {
+    assert.equal(contarConversao('2 litros para mililitros'), 2000);
+    assert.equal(contarConversao('500 ml para litros'), 0.5);
+    assert.equal(contarConversao('1 metro cubico para litros'), 1000);
+  });
+
+  it('nao corta milissegundos nem mililitros no "mil"', () => {
+    assert.equal(contarConversao('500 milissegundos para segundos'), 0.5);
+    assert.equal(contarConversao('1000 mililitros para litros'), 1);
+  });
+
+  it('aceita o conector "p"', () => {
+    assert.equal(contarConversao('5 m p cm'), 500);
+  });
+
+  it('ignora preambulo antes do numero', () => {
+    assert.equal(contarConversao('quanto é 5 metros em centimetros'), 500);
+  });
+
+  it('mostra a unidade de saida no visor', () => {
+    const resultado = calcular('5 m para cm');
+    assert.equal(resultado.tipo, 'conversao');
+    assert.equal(resultado.expressao, '5 m → cm');
+    assert.equal(resultado.unidadeSaida, 'cm');
+    assert.equal(resultado.resultado, 500);
+  });
+
+  it('le a conversao por extenso', () => {
+    assert.equal(
+      formatarParaFala(calcular('5 m para cm')),
+      '5 metros para centímetros é 500',
+    );
+  });
+
+  it('recusa unidade desconhecida ou repetida', () => {
+    assert.equal(calcular('5 bananas para macas').tipo, 'nao_entendi');
+    assert.equal(calcular('5 metros para metros').tipo, 'nao_entendi');
+  });
+
+  it('recusa categorias diferentes', () => {
+    assert.equal(calcular('5 metros para horas').tipo, 'nao_entendi');
+    assert.equal(calcular('2 kg para cm').tipo, 'nao_entendi');
+  });
+
+  it('sem conector continua sendo conta', () => {
+    assert.equal(calcular('5 metros').tipo, 'conta');
+    assert.equal(calcular('cinco mais tres').tipo, 'conta');
   });
 });
 
@@ -214,6 +311,10 @@ function contar(texto: string): number {
 
 function contarTemperatura(texto: string): number {
   return contarComTipo(texto, 'temperatura');
+}
+
+function contarConversao(texto: string): number {
+  return contarComTipo(texto, 'conversao');
 }
 
 function contarComTipo(texto: string, tipo: ResultadoProcessamento['tipo']): number {

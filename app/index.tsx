@@ -38,7 +38,7 @@ export default function Index() {
     (res: ResultadoProcessamento) => {
       if (res.tipo === 'ajuda' && res.topico === 'repetir') {
         const anterior = resultadoRef.current;
-        if (anterior?.tipo === 'conta' || anterior?.tipo === 'temperatura') {
+        if (anterior?.tipo === 'conta' || anterior?.tipo === 'temperatura' || anterior?.tipo === 'conversao') {
           falar(formatarParaFala(anterior));
           return;
         }

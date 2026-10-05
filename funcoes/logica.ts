@@ -1,4 +1,5 @@
 import { GATILHOS, MENSAGENS, TopicoAjuda } from '../constantes/mensagens';
+import { UNIDADES, UnidadeTipo } from '../constantes/unidades';
 
 const PALAVRAS_NUMEROS: Record<string, number> = {
   zero: 0, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4,
@@ -132,11 +133,15 @@ function substituirPalavrasNumeros(texto: string): string {
 }
 
 export type ResultadoProcessamento = {
-  tipo: 'conta' | 'temperatura' | 'erro' | 'nao_entendi' | 'ajuda';
+  tipo: 'conta' | 'temperatura' | 'conversao' | 'erro' | 'nao_entendi' | 'ajuda';
   expressao?: string;
   resultado?: number | string;
   mensagem?: string;
   topico?: TopicoAjuda;
+  // Unidade exibida depois do valor no visor (ex.: "cm", "°F").
+  unidadeSaida?: string;
+  // Frase pronta para o TTS; quando existe, formatarParaFala a usa direto.
+  fala?: string;
 };
 
 const UNIDADES_TEMP: Record<string, string> = {
@@ -188,7 +193,7 @@ function converterTemperatura(texto: string): ResultadoProcessamento | null {
   if (!de || !para || de === para) return null;
 
   let resultado: number;
-  const expressao = `${valor}${SIMBOLOS_TEMP[de]} → ${para}`;
+  const expressao = `${valor}${SIMBOLOS_TEMP[de]} → ${SIMBOLOS_TEMP[para]}`;
 
   switch (`${de}${para}`) {
     case 'CF': resultado = valor * 1.8 + 32; break;
@@ -200,7 +205,61 @@ function converterTemperatura(texto: string): ResultadoProcessamento | null {
     default: return null;
   }
 
-  return { tipo: 'temperatura', expressao, resultado: Number(resultado.toFixed(2)) };
+  const final = Number(resultado.toFixed(2));
+
+  return {
+    tipo: 'temperatura',
+    expressao,
+    resultado: final,
+    unidadeSaida: SIMBOLOS_TEMP[para],
+    fala: `${numeroPorExtenso(valor)} graus ${NOMES_TEMP[de]} para ${NOMES_TEMP[para]} é ${numeroPorExtenso(final)} graus ${NOMES_TEMP[para]}`,
+  };
+}
+
+function arredondarRuido(valor: number): number {
+  // Corta ruído de ponto flutuante ("18.000000000000004" → 18) sem
+  // perder dígitos legítimos ("0.95367431640625" fica como está).
+  return Number(valor.toPrecision(15));
+}
+
+function acharUnidade(segmento: string): UnidadeTipo | null {
+  const limpo = normalizar(segmento)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^[.,;:!?]+|[.,;:!?]+$/g, '');
+
+  if (!limpo) return null;
+
+  return UNIDADES[limpo] ?? null;
+}
+
+function converterUnidades(texto: string): ResultadoProcessamento | null {
+  const t = substituirPalavrasNumeros(texto);
+
+  const match = t.match(
+    /^[^\d]*?(\d+(?:[.,]\d+)?)\s*(.+?)\s*\b(?:para|em|p|pro|pra)\s+(.+)$/
+  );
+
+  if (!match) return null;
+
+  const valor = parseFloat(match[1].replace(',', '.'));
+  const de = acharUnidade(match[2]);
+  const para = acharUnidade(match[3]);
+
+  if (!de || !para) return { tipo: 'nao_entendi', mensagem: 'Erro, tente novamente' };
+  if (de.categoria !== para.categoria || de.sigla === para.sigla) {
+    return { tipo: 'nao_entendi', mensagem: 'Erro, tente novamente' };
+  }
+
+  const final = arredondarRuido((valor * de.fator) / para.fator);
+
+  return {
+    tipo: 'conversao',
+    expressao: `${valor} ${de.sigla} → ${para.sigla}`,
+    resultado: final,
+    unidadeSaida: para.sigla,
+    fala: `${numeroPorExtenso(valor)} ${de.plural} para ${para.plural} é ${numeroPorExtenso(final)}`,
+  };
 }
 
 function resolverPotenciasERaizes(texto: string): string {
@@ -284,6 +343,9 @@ export function processarComando(texto: string): ResultadoProcessamento {
   const temp = converterTemperatura(texto);
   if (temp) return temp;
 
+  const conversao = converterUnidades(texto);
+  if (conversao) return conversao;
+
   let processado = substituirConstantes(substituirPalavrasNumeros(texto));
 
   processado = resolverPotenciasERaizes(processado);
@@ -352,6 +414,8 @@ function numeroPorExtenso(valor: number | string): string {
 }
 
 export function formatarParaFala(resultado: ResultadoProcessamento): string {
+  if (resultado.fala) return resultado.fala;
+
   if (resultado.tipo === 'conta') {
     const expressao = String(resultado.expressao ?? '');
     const valor = numeroPorExtenso(resultado.resultado ?? '');
@@ -369,16 +433,6 @@ export function formatarParaFala(resultado: ResultadoProcessamento): string {
       .trim();
 
     return `${numeroPorExtenso(porExtenso)} é ${valor}`;
-  }
-
-  if (resultado.tipo === 'temperatura') {
-    const partes = String(resultado.expressao ?? '').match(/^([\d.,]+)\s*°?\s*([CFK])\s*→\s*([CFK])$/);
-    if (partes) {
-      const valor = numeroPorExtenso(partes[1]);
-      const de = NOMES_TEMP[partes[2]];
-      const para = NOMES_TEMP[partes[3]];
-      return `${valor} graus ${de} para ${para} é ${numeroPorExtenso(resultado.resultado ?? '')} graus ${para}`;
-    }
   }
 
   if (resultado.mensagem) return resultado.mensagem;

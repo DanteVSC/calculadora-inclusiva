@@ -8,21 +8,21 @@ export type TopicoAjuda =
 
 export const MENSAGENS: Record<TopicoAjuda, string> = {
   'boas-vindas':
-    'Bem-vindo à Calculadora Inclusiva. Pressione sobre a tela, digite ou diga a conta ou conversão de valores que você quer fazer, e solte. Para mais informações, diga: lista de comandos.',
+    'Bem-vindo à Calculadora Inclusiva. Pressione sobre a tela, diga a conta ou conversão de valores que você quer fazer, e solte. Para mais informações, diga: "como usar"',
   'como-usar':
-    'Para calcular, pressione e segure o microfone, fale a conta, e solte quando terminar. O resultado aparece na tela e é lido em voz alta. Também dá para tocar na frase acima e digitar. O ícone de sol ou lua troca o tema claro e escuro.',
+    'Para calcular, pressione e segure o microfone, fale a conta, e solte quando terminar. O resultado aparece na tela e é lido em voz alta. Para mais informações diga "lista de comandos"',
   operacoes:
-    'Operações: soma, subtração, multiplicação e divisão. Por exemplo: cinco mais três vezes dois. Também tem potências e raízes: cinco ao quadrado, dois elevado a três, raiz quadrada de dezesseis. Números por extenso funcionam: mil e quinhentos e vinte.',
+    'Operações: soma, subtração, multiplicação e divisão. Por exemplo: cinco mais três vezes dois. Também tem potências e raízes: cinco ao quadrado, dois elevado a três, raiz quadrada de dezesseis.',
   conversoes:
-    'Conversões de temperatura: trinta graus celsius para fahrenheit. Também dá para converter de fahrenheit para celsius, celsius para kelvin, e o inverso de cada um.',
+    'Conversões disponíveis: temperatura, "trinta graus celsius para fahrenheit"; tempo, "duas horas para minutos"; comprimento, "dez metros para centímetros"; velocidade, "quarenta quilômetros por hora para metros por segundo"; massa, "cinquenta quilos para gramas"; área, "dois hectares para metros quadrados"; dados, "um gigabyte para megabytes"; volume, "dois litros para mililitros".',
   comandos:
-    'Comandos: como usar, lista de operações, lista de conversões, repetir resultado, boas-vindas. Todos podem ser ditos no microfone ou tocados nos botões de ajuda.',
+   'Comandos disponiveis: "conversões", para escutar a lista de conversões, "operações" para escutar a lista de operações. "repetir", para repetir o resultado da ultima conta ou conversão feita. Para usar um comando basta pressionar a tela e soltar após dizer o comando.',
   repetir: 'Nenhum resultado para repetir.',
 };
 
 export const GATILHOS: Record<TopicoAjuda, string[]> = {
   'boas-vindas': ['boas vindas', 'introducao', 'inicio', 'comeco'],
-  'como-usar': ['como usar', 'como funciona', 'instrucoes'],
+  'como-usar': ['como usar', 'como funciona', 'instrucoes','alô','oi', 'tutorial'],
   operacoes: ['lista de operacoes', 'operacoes', 'contas'],
   conversoes: ['lista de conversoes', 'conversoes', 'temperaturas'],
   comandos: ['lista de comandos', 'ajuda', 'comandos'],
