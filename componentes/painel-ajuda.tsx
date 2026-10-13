@@ -8,9 +8,11 @@ type PainelAjudaTipo = {
   vozes: VozTipo[];
   vozAtual: VozTipo | null;
   velocidade: number;
+  palavraChaveAtiva: boolean;
   aoEscolherTopico: (topico: TopicoAjuda) => void;
   aoTrocarVoz: () => void;
   aoTrocarVelocidade: () => void;
+  aoAlternarPalavraChave: () => void;
 };
 
 export function PainelAjuda({
@@ -18,9 +20,11 @@ export function PainelAjuda({
   vozes,
   vozAtual,
   velocidade,
+  palavraChaveAtiva,
   aoEscolherTopico,
   aoTrocarVoz,
   aoTrocarVelocidade,
+  aoAlternarPalavraChave,
 }: PainelAjudaTipo) {
   return (
     <View style={[styles.painel, { backgroundColor: cores.primaria }]}>
@@ -59,6 +63,18 @@ export function PainelAjuda({
         <Text style={[styles.botaoTexto, { color: cores.texto }]}>Velocidade</Text>
         <Text style={[styles.botaoValor, { color: cores.texto }]}>
           {velocidade.toFixed(1).replace('.', ',')}×
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.botao, styles.botaoAudio, { backgroundColor: cores.fundo, borderColor: cores.borda }]}
+        onPress={aoAlternarPalavraChave}
+        accessibilityRole="button"
+        accessibilityLabel={`Palavra-chave: ${palavraChaveAtiva ? 'ligada' : 'desligada'}`}
+      >
+        <Text style={[styles.botaoTexto, { color: cores.texto }]}>Palavra-chave</Text>
+        <Text style={[styles.botaoValor, { color: cores.texto }]}>
+          {palavraChaveAtiva ? 'Ligada' : 'Desligada'}
         </Text>
       </Pressable>
     </View>

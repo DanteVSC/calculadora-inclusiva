@@ -2,12 +2,20 @@ import { useCallback, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 
+type OpcoesUsarVozTipo = {
+  // Chamado a cada transcrição FINAL nova (por sessão). Usado pelo modo
+  // palavra-chave no app/index, que tem sua própria máquina de estados.
+  aoResultadoFinal?: (transcricao: string) => void;
+};
+
 type ReconhecimentoVozTipo = {
   ouvindo: boolean;
   texto: string;
   textoParcial: string;
   iniciar: () => void;
   parar: () => void;
+  // Limpa as transcrições sem mexer na sessão (ex.: assumir a escuta ociosa).
+  limparTexto: () => void;
   erro: string | null;
   suportado: boolean;
 };
@@ -21,13 +29,17 @@ declare global {
 
 const WEB = Platform.OS === 'web';
 
-export function usarVoz(): ReconhecimentoVozTipo {
+export function usarVoz(opcoes?: OpcoesUsarVozTipo): ReconhecimentoVozTipo {
   const [ouvindo, setOuvindo] = useState(false);
   const [texto, setTexto] = useState('');
   const [textoParcial, setTextoParcial] = useState('');
   const [erro, setErro] = useState<string | null>(null);
 
   const reconhecimentoRef = useRef<{ stop: () => void } | null>(null);
+
+  // Mantido fresco sem depender do array de deps do useCallback.
+  const aoResultadoFinalRef = useRef<OpcoesUsarVozTipo['aoResultadoFinal']>(undefined);
+  aoResultadoFinalRef.current = opcoes?.aoResultadoFinal;
 
   const suportado = WEB
     ? typeof window !== 'undefined' &&
@@ -50,6 +62,7 @@ export function usarVoz(): ReconhecimentoVozTipo {
       if (event.isFinal) {
         setTexto(r.transcript);
         setTextoParcial('');
+        aoResultadoFinalRef.current?.(r.transcript);
       } else {
         setTextoParcial(r.transcript);
       }
@@ -85,19 +98,28 @@ export function usarVoz(): ReconhecimentoVozTipo {
         setErro(null);
       };
 
+      // Na web `event.results` é acumulativo: só avisar o app dos finais NOVOS.
+      let finaisVistos = 0;
+
       recognition.onresult = (event: any) => {
         let textoFinal = '';
         let parcial = '';
+        let novosFinais = '';
+        let quantosFinais = 0;
 
         for (let i = 0; i < event.results.length; i++) {
           const resultado = event.results[i];
           if (resultado.isFinal) {
             textoFinal += resultado[0].transcript;
+            if (i >= finaisVistos) novosFinais += resultado[0].transcript;
+            quantosFinais++;
           } else {
             parcial += resultado[0].transcript;
           }
         }
 
+        finaisVistos = quantosFinais;
+        if (novosFinais) aoResultadoFinalRef.current?.(novosFinais);
         setTexto(textoFinal);
         setTextoParcial(parcial);
       };
@@ -137,9 +159,9 @@ export function usarVoz(): ReconhecimentoVozTipo {
   }, []);
 
   const parar = useCallback(() => {
-    setTexto((t) => t || textoParcial);
-    setTextoParcial('');
-
+    // NÃO commitar o parcial aqui: no Android o `stop()` só emite o `result`
+    // final DEPOIS (ver README do expo-speech-recognition). Quem processa o
+    // texto (app/index) espera esse resultado final chegar.
     if (WEB) {
       // Precisa parar a MESMA instância criada em iniciar(); uma nova instância
       // nunca foi iniciada e o stop() dela não encerra nada.
@@ -152,7 +174,12 @@ export function usarVoz(): ReconhecimentoVozTipo {
     } else {
       ExpoSpeechRecognitionModule.stop();
     }
-  }, [textoParcial]);
+  }, []);
 
-  return { ouvindo, texto, textoParcial, iniciar, parar, erro, suportado };
+  const limparTexto = useCallback(() => {
+    setTexto('');
+    setTextoParcial('');
+  }, []);
+
+  return { ouvindo, texto, textoParcial, iniciar, parar, limparTexto, erro, suportado };
 }

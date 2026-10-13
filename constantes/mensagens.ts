@@ -5,7 +5,8 @@ export type TopicoAjuda =
   | 'conversoes'
   | 'comandos'
   | 'repetir'
-  | 'configuracoes';
+  | 'configuracoes'
+  | 'palavra-chave';
 
 export const MENSAGENS: Record<TopicoAjuda, string> = {
   'boas-vindas':
@@ -19,7 +20,10 @@ export const MENSAGENS: Record<TopicoAjuda, string> = {
   comandos:
    'Lista de comandos. diga: "conversões", para escutar a lista de conversões, "operações" para escutar a lista de operações, "repetir", para repetir o resultado da ultima conta ou conversão feita, "configurações", para escutar a lista de configurações. Para usar um comando basta pressionar a tela e soltar após dizer o comando.',
   repetir: 'Nenhum resultado para repetir.',
-  configuracoes: 'Lista de configurações: Diga "voz", para alterar a voz da calculadora, "velocidade", para alterar a velocidade da voz da calculadora.',
+  configuracoes:
+    'Lista de configurações: Diga "voz", para alterar a voz da calculadora, "velocidade", para alterar a velocidade da voz da calculadora, "palavra chave", para ligar ou desligar a escuta por palavra-chave.',
+  'palavra-chave':
+    'Modo palavra-chave: com ele ligado, fale a palavra calculadora e depois o comando, sem apertar botão nenhum. A gravação do comando para sozinho depois de dois segundos e meio de silêncio. Ative e desative pelo botão Palavra-chave no painel de ajuda ou dizendo "palavra chave".',
 };
 
 export const GATILHOS: Record<TopicoAjuda, string[]> = {
@@ -30,6 +34,10 @@ export const GATILHOS: Record<TopicoAjuda, string[]> = {
   comandos: ['lista de comandos', 'ajuda', 'comandos'],
   repetir: ['repetir', 'de novo', 'ouvir de novo'],
   configuracoes: ['configuracoes', 'configuracao', 'ajustes', 'opcoes'],
+  // Só gatilhos longos de propósito: o toggle por voz usa "palavra chave"
+  // simples e é testado DEPOIS da ajuda (detectarAjuda roda antes). Não usar
+  // "como funciona"/"ajuda" aqui: casam antes com os tópicos genéricos.
+  'palavra-chave': ['explicar palavra chave', 'o que e a palavra chave', 'falar sem botao'],
 };
 
 export const ROTULOS: Record<TopicoAjuda, string> = {
@@ -40,6 +48,7 @@ export const ROTULOS: Record<TopicoAjuda, string> = {
   comandos: 'Comandos',
   repetir: 'Repetir',
   configuracoes: 'Configurações',
+  'palavra-chave': 'Palavra-chave',
 };
 
 export const BOTOES_AJUDA: TopicoAjuda[] = [
@@ -49,6 +58,7 @@ export const BOTOES_AJUDA: TopicoAjuda[] = [
   'comandos',
   'repetir',
   'configuracoes',
+  'palavra-chave',
 ];
 
 export const AMOSTRA_VOZ = 'Esta é uma das vozes da calculadora.';
@@ -75,4 +85,16 @@ export const RESPOSTAS_CONFIGURACAO = {
   vozIndisponivel: 'Nenhuma voz encontrada neste aparelho.',
   velocidadeAlterada: (taxa: number) =>
     `Velocidade alterada para ${taxa.toFixed(1).replace('.', ',')} vezes.`,
+  palavraChaveAtivada: (palavra: string) =>
+    `Modo palavra-chave ativado. Diga ${palavra} e depois fale o comando.`,
+  palavraChaveDesativada: 'Modo palavra-chave desativado.',
 };
+
+// Palavra que aciona a escuta sem botão (modo palavra-chave).
+export const PALAVRA_CHAVE = 'calculadora';
+
+// Comandos de voz que ligam/desligam o modo palavra-chave (toggle, como voz).
+export const GATILHOS_PALAVRA_CHAVE: string[] = [
+  'palavra chave', 'escuta continua', 'modo de escuta', 'escutar sem botao',
+  'ativar escuta', 'ativa escuta',
+];

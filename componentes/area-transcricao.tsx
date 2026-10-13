@@ -8,6 +8,8 @@ type AreaTranscricaoTipo = {
   textoExibicao: string;
   textoLegenda: string;
   textoDigitado: string;
+  // Texto mostrado quando não há legenda nem gravação (ex.: dica da palavra-chave).
+  dica?: string;
   aoDigitado: (texto: string) => void;
   aoEnviar: () => void;
   aoEditar: () => void;
@@ -21,6 +23,7 @@ export function AreaTranscricao({
   textoExibicao,
   textoLegenda,
   textoDigitado,
+  dica,
   aoDigitado,
   aoEnviar,
   aoEditar,
@@ -51,7 +54,7 @@ export function AreaTranscricao({
       ) : (
         <Pressable onPress={aoEditar}>
           <Text style={[styles.texto, { color: cores.textoInvertido }]}>
-            "{textoLegenda || 'Pressione o microfone para gravar e solte quando terminar'}"
+            "{textoLegenda || dica || 'Pressione o microfone para gravar e solte quando terminar'}"
           </Text>
         </Pressable>
       )}

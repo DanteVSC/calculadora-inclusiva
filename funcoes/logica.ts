@@ -1,4 +1,4 @@
-import { GATILHOS, GATILHOS_VELOCIDADE, GATILHOS_VOZ, MENSAGENS, TopicoAjuda } from '../constantes/mensagens';
+import { GATILHOS, GATILHOS_PALAVRA_CHAVE, GATILHOS_VELOCIDADE, GATILHOS_VOZ, MENSAGENS, TopicoAjuda } from '../constantes/mensagens';
 import { UNIDADES, UnidadeTipo } from '../constantes/unidades';
 
 const PALAVRAS_NUMEROS: Record<string, number> = {
@@ -157,7 +157,7 @@ export type ResultadoProcessamento = {
   mensagem?: string;
   topico?: TopicoAjuda;
   // Ação de configuração pedida por voz (o index.tsx troca e responde).
-  acao?: 'voz' | 'velocidade';
+  acao?: 'voz' | 'velocidade' | 'palavra-chave';
   // Unidade exibida depois do valor no visor (ex.: "cm", "°F").
   unidadeSaida?: string;
   // Frase pronta para o TTS; quando existe, formatarParaFala a usa direto.
@@ -210,8 +210,24 @@ function detectarConfiguracao(texto: string): ResultadoProcessamento | null {
   // Velocidade antes de voz: "velocidade da voz" tem "voz" no fim.
   if (bateu(GATILHOS_VELOCIDADE)) return { tipo: 'configuracao', acao: 'velocidade' };
   if (bateu(GATILHOS_VOZ)) return { tipo: 'configuracao', acao: 'voz' };
+  if (bateu(GATILHOS_PALAVRA_CHAVE)) return { tipo: 'configuracao', acao: 'palavra-chave' };
 
   return null;
+}
+
+// No modo palavra-chave: se a frase contém a palavra (normalizada, com
+// fronteira de palavra), devolve o que veio DEPOIS dela ("" = só a palavra,
+// null = não contém). NÃO colapsar espaços antes: os índices do casamento
+// precisam bater com o texto original, e a normalização de acentos mantém o
+// tamanho dos caracteres em pt-BR.
+export function extrairComandoAposPalavraChave(texto: string, palavra: string): string | null {
+  const normalizado = normalizar(texto);
+  const alvo = normalizar(palavra).trim();
+  const regex = new RegExp(`(^|\\s)${alvo}(\\s|$)`);
+  const casamento = regex.exec(normalizado);
+  if (!casamento) return null;
+  const inicio = casamento.index + casamento[0].length;
+  return texto.slice(inicio).trim();
 }
 
 function converterTemperatura(texto: string): ResultadoProcessamento | null {

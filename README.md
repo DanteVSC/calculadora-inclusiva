@@ -1,7 +1,7 @@
 # Calculadora Inclusiva
 
-App de calculadora para **Android com suporte web** que entende **comandos de voz e texto em português do Brasil** 
-O usuario fala a conta por extenso ("cinco mais três vezes dois") e o app calcula, mostra o resultado formatado em pt-BR e **lê em voz alta**.
+App de calculadora para Android com suporte operado via comandos de voz e texto em português do Brasil 
+O usuario fala a conta por extenso ("cinco mais três vezes dois"), o app calcula e mostra o resultado formatado e lê em voz alta.
 Voltado para pessoas com deficiencias visuais ou em membros superiores.
 
 ## Baixar o APK
@@ -10,7 +10,8 @@ Baixe a versão mais recente direto aqui:
 
 **[⬇️ Baixar calculadora-inclusiva.apk](https://github.com/DanteVSC/calculadora-inclusiva/releases/latest/download/calculadora-inclusiva.apk)**
 
-Ou acesse a página de [releases do projeto](https://github.com/DanteVSC/calculadora-inclusiva/releases) para ver as versões. Instale o APK no Android (é preciso permitir a instalação de apps de fontes desconhecidas) e conceda as permissões de **microfone** e **áudio** quando solicitado.
+Ou acesse a página de [releases do projeto](https://github.com/DanteVSC/calculadora-inclusiva/releases) para ver as versões. 
+Instale o APK no Android (é preciso permitir a instalação de apps de fontes desconhecidas) e conceda as permissões de **microfone** e **áudio** quando solicitado.
 
 ## Rodar na sua máquina
 
@@ -18,12 +19,11 @@ Pré-requisitos: [Node.js](https://nodejs.org) (LTS) e, para o app nativo, o [An
 
 ```bash
 npm install      # instala as dependências
-npm start        # inicia o Metro (escaneie o QR code com o Expo Go)
 npm run web      # roda direto no navegador
-npm run android  # build de desenvolvimento no Android (gera a pasta android/)
+npm run android  # gera o APK na pasta /android
 ```
 
-> **Observação:** o reconhecimento de voz nativo (Android) usa o `expo-speech-recognition`, que **não funciona no Expo Go** — para testar a voz no celular é preciso um dev build (`npm run android`). No **navegador** a voz funciona direto, pela Web Speech API.
+> **Observação:** o reconhecimento de voz nativo (Android) usa o `expo-speech-recognition`, que **não funciona no Expo Go** — para testar a voz no celular é preciso um gerar um build apk do projeto.
 
 ## Funcionalidades
 
@@ -38,6 +38,7 @@ npm run android  # build de desenvolvimento no Android (gera a pasta android/)
 - **Constantes**: pi e euler
 - **Leitura em voz alta** dos resultados
 - **Voz e velocidade configuráveis** por comando de voz ("voz", "velocidade") ou pelo painel de ajuda.
+- **Modo palavra-chave**: ligue pelo painel de ajuda ou digando "palavra chave"; então fale "calculadora" e depois o comando **sem apertar botão** — a gravação para sozinha depois de ~2,5s de silêncio.
 - **Guia por voz**: "como usar", "lista de operações", "lista de conversões", "lista de comandos", "boas-vindas"
 - **Interface**, transcrição do que está sendo escrito/apurado na tela e microfone por toque e segurar (tocar em qualquer lugar vazio da tela também grava)
 
