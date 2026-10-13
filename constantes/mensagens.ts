@@ -13,7 +13,7 @@ export const MENSAGENS: Record<TopicoAjuda, string> = {
   'como-usar':
     'Para calcular, pressione e segure o microfone, fale a conta, e solte quando terminar. O resultado aparece na tela e é lido em voz alta. Para mais informações diga "lista de comandos"',
   operacoes:
-    'Lista de operações: soma, subtração, multiplicação e divisão. Por exemplo: cinco mais três vezes dois; Potências e raízes: cinco ao quadrado, dois elevado a três, raiz quadrada de dezesseis.',
+    'Lista de operações: soma, subtração, multiplicação, divisão, potências, raízes, log, módulo e fatorial. Por exemplo: cinco mais três vezes dois; cinco ao quadrado; raiz quadrada de dezesseis; log de cem; cinco fatorial;',
   conversoes:
     'Conversões disponíveis: temperatura, "trinta graus celsius para fahrenheit"; tempo, "duas horas para minutos"; comprimento, "dez metros para centímetros"; velocidade, "quarenta quilômetros por hora para metros por segundo"; massa, "cinquenta quilos para gramas"; área, "dois hectares para metros quadrados"; dados, "um gigabyte para megabytes"; volume, "dois litros para mililitros".',
   comandos:

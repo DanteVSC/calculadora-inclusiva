@@ -229,6 +229,83 @@ describe('conversao de unidades', () => {
   });
 });
 
+describe('numeros grandes', () => {
+  it('entende bilhao e trilhao', () => {
+    assert.equal(contar('um bilhao'), 1e9);
+    assert.equal(contar('dois bilhoes'), 2e9);
+    assert.equal(contar('um trilhao'), 1e12);
+    assert.equal(contar('um bilhao mais um'), 1e9 + 1);
+  });
+
+  it('soma escalas diferentes', () => {
+    assert.equal(contar('um bilhao e duzentos milhoes'), 1.2e9);
+    assert.equal(contar('um trilhao e quinhentos bilhoes'), 1.5e12);
+    assert.equal(contar('duzentos e cinquenta milhoes'), 2.5e8);
+    assert.equal(contar('um milhao e duzentos mil'), 1200000);
+  });
+
+  it('funciona junto com operadores', () => {
+    assert.equal(contar('um bilhao dividido por mil'), 1e6);
+  });
+});
+
+describe('log e fatorial', () => {
+  it('resolve log de base 10', () => {
+    assert.equal(contar('log de 100'), 2);
+    assert.equal(contar('log de 1000'), 3);
+    assert.equal(contar('log de 1'), 0);
+    assert.ok(Math.abs(contar('log de 8') - Math.log10(8)) < 1e-9);
+  });
+
+  it('aceita log sem a palavra de e com parenteses', () => {
+    assert.equal(contar('log 100'), 2);
+    assert.equal(contar('log(100)'), 2);
+  });
+
+  it('resolve fatorial pelo simbolo e pela palavra', () => {
+    assert.equal(contar('5!'), 120);
+    assert.equal(contar('0!'), 1);
+    assert.equal(contar('fatorial de 5'), 120);
+    assert.equal(contar('cinco fatorial'), 120);
+    assert.equal(contar('20!'), 2432902008176640000);
+  });
+
+  it('fatorial tem prioridade sobre os operadores', () => {
+    assert.equal(contar('5! mais 1'), 121);
+    assert.equal(contar('5 x 3!'), 30);
+  });
+
+  it('recusa fatorial invalido', () => {
+    assert.equal(calcular('2.5!').tipo, 'nao_entendi');
+    assert.equal(calcular('21!').tipo, 'nao_entendi');
+  });
+});
+
+describe('modulo', () => {
+  it('resolve o resto da divisao', () => {
+    assert.equal(contar('11 modulo 10'), 1);
+    assert.equal(contar('11 módulo 10'), 1);
+    assert.equal(contar('10 mod 3'), 1);
+    assert.equal(contar('17 modulo 5'), 2);
+    assert.equal(contar('11 % 10'), 1);
+  });
+
+  it('tem a mesma precedencia da multiplicacao', () => {
+    assert.equal(contar('323 vezes 2 modulo 322'), 2);
+    assert.equal(contar('2 vezes 5 modulo 3'), 1);
+    assert.equal(contar('10 mais 11 modulo 10'), 11);
+  });
+
+  it('recusa modulo por zero', () => {
+    assert.equal(calcular('5 modulo 0').tipo, 'erro');
+    assert.equal(calcular('5 mod 0').tipo, 'erro');
+  });
+
+  it('le o modulo na fala', () => {
+    assert.equal(formatarParaFala(calcular('11 modulo 10')), '11 módulo 10 é 1');
+  });
+});
+
 describe('constantes matematicas', () => {
   it('resolve pi e o simbolo π', () => {
     assert.equal(contar('pi'), Math.PI);

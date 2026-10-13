@@ -96,26 +96,44 @@ function substituirPalavrasNumeros(texto: string): string {
     resultado = resultado.replace(new RegExp(`\\b${palavra}\\b`, 'g'), String(valor));
   }
 
-  resultado = resultado.replace(/(\d+(?:\s*e\s*\d+)*)\s*(?:milhao|milhoes)(?:\s+\d+)*/g, (match) => {
-    const parts = match.split(/\s+/);
-    const main: string[] = [];
-    let foundMillion = false;
-    const trailing: string[] = [];
-    for (const p of parts) {
-      if (p === 'milhao' || p === 'milhoes') { foundMillion = true; continue; }
-      if (!foundMillion) main.push(p);
-      else if (/^\d+$/.test(p)) trailing.push(p);
-    }
-    const sum = main.reduce((a, n) => a + Number(n), 0);
-    return String(sum * 1000000 + trailing.reduce((a, n) => a * 1000 + Number(n), 0));
-  });
-  resultado = resultado.replace(/(?<!\d)\s*(?:milhao|milhoes)\b/g, '1000000');
+  // Escalas da maior para a menor. O grupo antes da escala só aceita números
+  // de até 6 dígitos para não engolir um valor já colapsado ("1 trilhão e
+  // 500 bilhões" não pode virar (1000000000000 e 500) trilhões).
+  const ESCALAS: [string, number][] = [
+    ['trilhao|trilhoes', 1e12],
+    ['bilhao|bilhoes', 1e9],
+    ['milhao|milhoes', 1e6],
+  ];
 
-  resultado = resultado.replace(/(\d{1,6}(?:\s*e\s*\d{1,6})*)\s*mil\s+e\s+(\d+)/g, (_, compound, resto) => {
+  for (const [nome, valor] of ESCALAS) {
+    const ehEscala = new RegExp(`^(?:${nome})$`);
+    resultado = resultado.replace(
+      // (?<!\d) impede a regex de começar no MEIO de um número já colapsado
+      // ("1000000000 e 200 milhoes" não pode casar em "000000 e 200 milhoes").
+      new RegExp(`(?<!\\d)(\\d{1,6}(?:\\s*e\\s*\\d{1,6})*)\\s*(?:${nome})(?:\\s+\\d+)*`, 'g'),
+      (match) => {
+        const parts = match.split(/\s+/);
+        const main: string[] = [];
+        let achouEscala = false;
+        const trailing: string[] = [];
+        for (const p of parts) {
+          if (ehEscala.test(p)) { achouEscala = true; continue; }
+          if (p === 'e') continue; // conector "duzentos E cinquenta milhões"
+          if (!achouEscala) main.push(p);
+          else if (/^\d+$/.test(p)) trailing.push(p);
+        }
+        const sum = main.reduce((a, n) => a + Number(n), 0);
+        return String(sum * valor + trailing.reduce((a, n) => a * 1000 + Number(n), 0));
+      },
+    );
+    resultado = resultado.replace(new RegExp(`(?<!\\d)\\s*(?:${nome})\\b`, 'g'), String(valor));
+  }
+
+  resultado = resultado.replace(/(?<!\d)(\d{1,6}(?:\s*e\s*\d{1,6})*)\s*mil\s+e\s+(\d+)/g, (_, compound, resto) => {
     const sum = compound.split(/\s*e\s*/).reduce((acc: number, n: string) => acc + Number(n), 0);
     return String(sum * 1000 + Number(resto));
   });
-  resultado = resultado.replace(/(\d{1,6}(?:\s*e\s*\d{1,6})*)\s*mil\b/g, (_, compound) => {
+  resultado = resultado.replace(/(?<!\d)(\d{1,6}(?:\s*e\s*\d{1,6})*)\s*mil\b/g, (_, compound) => {
     const sum = compound.split(/\s*e\s*/).reduce((acc: number, n: string) => acc + Number(n), 0);
     return String(sum * 1000);
   });
@@ -281,6 +299,15 @@ function converterUnidades(texto: string): ResultadoProcessamento | null {
   };
 }
 
+function fatorialTexto(valor: number): string {
+  // Só inteiros de 0 a 20 (20! ainda cabe com exatidão em float64).
+  // Retorna string vazia quando o valor é inválido.
+  if (!Number.isInteger(valor) || valor < 0 || valor > 20) return '';
+  let total = 1;
+  for (let i = 2; i <= valor; i += 1) total *= i;
+  return String(total);
+}
+
 function resolverPotenciasERaizes(texto: string): string {
   let r = texto;
   r = r.replace(/(\d+(?:[.,]\d+)?)\s*ao\s+quadrado/g, (_, v) =>
@@ -311,11 +338,22 @@ function resolverPotenciasERaizes(texto: string): string {
   r = r.replace(/(\d+(?:[.,]\d+)?)³/g, (_, v) =>
     String(Number(Math.pow(parseFloat(v.replace(',', '.')), 3).toFixed(10)))
   );
+  // log de base 10: "log de 100", "log 100" ou "log(100)"
+  r = r.replace(/\blog\s*(?:de)?\s*\(?\s*(\d+(?:[.,]\d+)?)\s*\)?/g, (_, v) =>
+    String(Number(Math.log10(parseFloat(v.replace(',', '.'))).toFixed(10)))
+  );
+  // fatorial: "5!", "fatorial de 5" ou "5 fatorial"
+  r = r.replace(/fatorial\s+de\s*\(?\s*(\d+(?:[.,]\d+)?)\s*\)?/g, (_, v) =>
+    fatorialTexto(parseFloat(v.replace(',', '.')))
+  );
+  r = r.replace(/(\d+(?:[.,]\d+)?)\s*(?:!+|fatorial\b)/g, (_, v) =>
+    fatorialTexto(parseFloat(v.replace(',', '.')))
+  );
   return r;
 }
 
 const TOKEN_NUMERO = /^-?\d+(?:\.\d+)?$/;
-const OPERADORES = ['+', '-', '*', '/'];
+const OPERADORES = ['+', '-', '*', '/', '%'];
 
 function avaliarExpressao(tokens: string[]): number {
   const ops: string[] = [];
@@ -336,12 +374,16 @@ function avaliarExpressao(tokens: string[]): number {
         if (b === 0) throw new Error('Divisao por zero');
         vals.push(a / b);
         break;
+      case '%':
+        if (b === 0) throw new Error('Modulo por zero');
+        vals.push(a % b);
+        break;
       default:
         throw new Error('Operador desconhecido');
     }
   }
 
-  const prec: Record<string, number> = { '+': 1, '-': 1, '*': 2, '/': 2 };
+  const prec: Record<string, number> = { '+': 1, '-': 1, '*': 2, '/': 2, '%': 2 };
 
   for (const token of tokens) {
     if (TOKEN_NUMERO.test(token)) {
@@ -396,10 +438,15 @@ export function processarComando(texto: string): ResultadoProcessamento {
     .replace(/dividir/g, '/')
     .replace(/multiplicar/g, '*')
     .replace(/subtrair/g, '-')
-    .replace(/por(?=\s*\d)/g, '*');
+    .replace(/por(?=\s*\d)/g, '*')
+    // "50% de 80" é porcentão (ainda não suportado), não módulo: deixa os
+    // letras que o strip abaixo vai remover, virando "50 80" → nao_entendi.
+    .replace(/%\s*de\b/g, ' porcento de')
+    .replace(/\bmodulo\b/g, '%')
+    .replace(/\bmod\b/g, '%');
 
-  processado = processado.replace(/([+\-*/()])/g, ' $1 ');
-  processado = processado.replace(/[^0-9+\-*/().]/g, ' ').replace(/\s+/g, ' ').trim();
+  processado = processado.replace(/([+\-*/()%])/g, ' $1 ');
+  processado = processado.replace(/[^0-9+\-*/().%]/g, ' ').replace(/\s+/g, ' ').trim();
 
   const tokens = processado.split(/\s+/).filter(Boolean);
 
@@ -476,6 +523,7 @@ export function formatarParaFala(resultado: ResultadoProcessamento): string {
       .replace(/\s*\+\s*/g, ' mais ')
       .replace(/\s*-\s*/g, ' menos ')
       .replace(/\s*\*\s*/g, ' vezes ')
+      .replace(/\s*%\s*/g, ' módulo ')
       .replace(/\s*\/\s*/g, ' dividido por ')
       .replace(/\s+/g, ' ')
       .trim();
