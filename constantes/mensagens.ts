@@ -12,11 +12,11 @@ export const MENSAGENS: Record<TopicoAjuda, string> = {
   'como-usar':
     'Para calcular, pressione e segure o microfone, fale a conta, e solte quando terminar. O resultado aparece na tela e é lido em voz alta. Para mais informações diga "lista de comandos"',
   operacoes:
-    'Operações: soma, subtração, multiplicação e divisão. Por exemplo: cinco mais três vezes dois. Também tem potências e raízes: cinco ao quadrado, dois elevado a três, raiz quadrada de dezesseis.',
+    'Operações: soma, subtração, multiplicação e divisão. Por exemplo: cinco mais três vezes dois; Potências e raízes: cinco ao quadrado, dois elevado a três, raiz quadrada de dezesseis.',
   conversoes:
     'Conversões disponíveis: temperatura, "trinta graus celsius para fahrenheit"; tempo, "duas horas para minutos"; comprimento, "dez metros para centímetros"; velocidade, "quarenta quilômetros por hora para metros por segundo"; massa, "cinquenta quilos para gramas"; área, "dois hectares para metros quadrados"; dados, "um gigabyte para megabytes"; volume, "dois litros para mililitros".',
   comandos:
-   'Comandos disponiveis: "conversões", para escutar a lista de conversões, "operações" para escutar a lista de operações. "repetir", para repetir o resultado da ultima conta ou conversão feita. Para usar um comando basta pressionar a tela e soltar após dizer o comando.',
+   'Comandos disponíveis: "conversões", para escutar a lista de conversões, "operações" para escutar a lista de operações, "repetir", para repetir o resultado da ultima conta ou conversão feita. Para usar um comando basta pressionar a tela e soltar após dizer o comando.',
   repetir: 'Nenhum resultado para repetir.',
 };
 

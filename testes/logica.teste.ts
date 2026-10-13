@@ -96,6 +96,16 @@ describe('potencias e raizes', () => {
     assert.equal(contar('raiz quadrada de dezesseis'), 4);
     assert.equal(contar('raiz cubica de oito'), 2);
   });
+
+  it('entende os simbolos que a voz devolve', () => {
+    assert.equal(contar('√16'), 4);
+    assert.equal(contar('√ 16'), 4);
+    assert.equal(contar('√(16)'), 4);
+    assert.ok(Math.abs(contar('√323') - Math.sqrt(323)) < 1e-6);
+    assert.equal(contar('∛27'), 3);
+    assert.equal(contar('cinco²'), 25);
+    assert.equal(contar('dois³'), 8);
+  });
 });
 
 describe('conversao de temperatura', () => {
@@ -114,6 +124,13 @@ describe('conversao de temperatura', () => {
     assert.equal(contarTemperatura('0 kelvin para fahrenheit'), -459.67);
     assert.equal(contarTemperatura('100 celsius para kelvin'), 373.15);
     assert.equal(contarTemperatura('32 fahrenheit para kelvin'), 273.15);
+  });
+
+  it('entende o simbolo de grau que a voz devolve', () => {
+    assert.equal(contarTemperatura('20°C para kelvin'), 293.15);
+    assert.equal(contarTemperatura('20 °c para k'), 293.15);
+    assert.equal(contarTemperatura('20ºc para kelvin'), 293.15);
+    assert.equal(contarTemperatura('20°celsius para fahrenheit'), 68);
   });
 });
 

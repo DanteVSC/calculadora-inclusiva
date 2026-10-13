@@ -181,7 +181,7 @@ function converterTemperatura(texto: string): ResultadoProcessamento | null {
   const t = substituirPalavrasNumeros(texto);
 
   const match = t.match(
-    /(\d+(?:[.,]\d+)?)\s*(?:graus\s*)?(celsius|fahrenheit|kelvin|c|f|k)\s*(?:para|em|p|pro|pra)\s*(celsius|fahrenheit|kelvin|c|f|k)/i
+    /(\d+(?:[.,]\d+)?)\s*(?:°|º|graus)?\s*(celsius|fahrenheit|kelvin|c|f|k)\s*(?:para|em|p|pro|pra)\s*(?:°|º|graus)?\s*(celsius|fahrenheit|kelvin|c|f|k)/i
   );
 
   if (!match) return null;
@@ -278,6 +278,19 @@ function resolverPotenciasERaizes(texto: string): string {
   );
   r = r.replace(/raiz\s+cubica\s+de?\s*(\d+(?:[.,]\d+)?)/g, (_, v) =>
     String(Number(Math.cbrt(parseFloat(v.replace(',', '.'))).toFixed(10)))
+  );
+  // O reconhecimento de voz às vezes devolve os símbolos no lugar das palavras.
+  r = r.replace(/√\s*\(?\s*(\d+(?:[.,]\d+)?)\s*\)?/g, (_, v) =>
+    String(Number(Math.sqrt(parseFloat(v.replace(',', '.'))).toFixed(10)))
+  );
+  r = r.replace(/∛\s*\(?\s*(\d+(?:[.,]\d+)?)\s*\)?/g, (_, v) =>
+    String(Number(Math.cbrt(parseFloat(v.replace(',', '.'))).toFixed(10)))
+  );
+  r = r.replace(/(\d+(?:[.,]\d+)?)²/g, (_, v) =>
+    String(Number(Math.pow(parseFloat(v.replace(',', '.')), 2).toFixed(10)))
+  );
+  r = r.replace(/(\d+(?:[.,]\d+)?)³/g, (_, v) =>
+    String(Number(Math.pow(parseFloat(v.replace(',', '.')), 3).toFixed(10)))
   );
   return r;
 }
