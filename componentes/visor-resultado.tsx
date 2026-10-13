@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { CoresTipo } from '../constantes/cores';
-import { ResultadoProcessamento } from '../funcoes/logica';
+import { formatarParaTela, ResultadoProcessamento } from '../funcoes/logica';
 
 type VisorResultadoTipo = {
   cores: CoresTipo;
@@ -10,7 +10,7 @@ type VisorResultadoTipo = {
 export function VisorResultado({ cores, resultado }: VisorResultadoTipo) {
   const texto =
     resultado?.tipo === 'conta' || resultado?.tipo === 'temperatura' || resultado?.tipo === 'conversao'
-      ? `${resultado.expressao} = ${resultado.resultado}${resultado.unidadeSaida ? ` ${resultado.unidadeSaida}` : ''}`
+      ? `${formatarParaTela(resultado.expressao ?? '')} = ${formatarParaTela(resultado.resultado ?? '')}${resultado.unidadeSaida ? ` ${resultado.unidadeSaida}` : ''}`
       : resultado?.mensagem || '';
 
   return (
@@ -18,7 +18,9 @@ export function VisorResultado({ cores, resultado }: VisorResultadoTipo) {
       <Text style={[styles.rotulo, { color: cores.texto }]}>Resultado:</Text>
       <Text
         style={[
-          resultado?.tipo === 'ajuda' ? styles.textoMenor : styles.texto,
+          resultado?.tipo === 'ajuda' || resultado?.tipo === 'configuracao'
+            ? styles.textoMenor
+            : styles.texto,
           { color: cores.texto },
         ]}
       >

@@ -31,7 +31,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 12,
     borderRadius: 8,
-    padding: 60,
     minHeight: 80,
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatarParaFala, processarComando, ResultadoProcessamento } from '../funcoes/logica';
+import { formatarParaFala, formatarParaTela, processarComando, ResultadoProcessamento } from '../funcoes/logica';
 
 function calcular(texto: string): ResultadoProcessamento {
   return processarComando(texto);
@@ -277,6 +277,52 @@ describe('ajuda', () => {
   });
 });
 
+describe('configuracoes por voz', () => {
+  it('reconhece varios comandos para trocar a voz', () => {
+    const comandos = [
+      'voz', 'mudar voz', 'mudar a voz', 'alterar voz', 'alterar a voz',
+      'trocar voz', 'trocar de voz', 'outra voz', 'fala', 'outra fala',
+    ];
+    for (const comando of comandos) {
+      assert.equal(acaoDe(comando), 'voz', `"${comando}" deveria trocar a voz`);
+    }
+  });
+
+  it('reconhece varios comandos para trocar a velocidade', () => {
+    const comandos = [
+      'velocidade', 'mudar velocidade', 'mudar a velocidade', 'alterar velocidade',
+      'trocar velocidade', 'outra velocidade', 'velocidade da voz',
+      'velocidade da fala', 'velocidade de reproducao',
+    ];
+    for (const comando of comandos) {
+      assert.equal(acaoDe(comando), 'velocidade', `"${comando}" deveria trocar a velocidade`);
+    }
+  });
+
+  it('nao troca a voz quando o pedido e de velocidade', () => {
+    assert.equal(acaoDe('velocidade da voz'), 'velocidade');
+    assert.equal(acaoDe('mudar a velocidade da voz'), 'velocidade');
+  });
+
+  it('ignora pontuacao e maiusculas', () => {
+    assert.equal(acaoDe('Voz?'), 'voz');
+    assert.equal(acaoDe('Mudar a Velocidade!'), 'velocidade');
+  });
+
+  it('lista de configuracoes continua sendo ajuda', () => {
+    const resultado = processarComando('lista de configurações');
+    assert.equal(resultado.tipo, 'ajuda');
+    assert.equal(resultado.topico, 'configuracoes');
+    assert.equal(topicoDe('configurações'), 'configuracoes');
+  });
+
+  it('nao intercepta contas nem conversoes', () => {
+    assert.equal(calcular('cinco mais tres').tipo, 'conta');
+    assert.equal(calcular('5 m para cm').tipo, 'conversao');
+    assert.equal(calcular('20°C para kelvin').tipo, 'temperatura');
+  });
+});
+
 describe('entradas invalidas', () => {
   it('reporta texto vazio', () => {
     const resultado = calcular('   ');
@@ -322,6 +368,29 @@ describe('formatarParaFala', () => {
   });
 });
 
+describe('formatarParaTela', () => {
+  it('usa virgula no decimal e ponto no milhar', () => {
+    assert.equal(formatarParaTela(137006.421), '137.006,421');
+    assert.equal(formatarParaTela('137000.421'), '137.000,421');
+    assert.equal(formatarParaTela(-459.67), '-459,67');
+    assert.equal(formatarParaTela(0.5), '0,5');
+  });
+
+  it('formata cada numero de uma expressao', () => {
+    assert.equal(formatarParaTela('137000.421 + 2 * 3'), '137.000,421 + 2 * 3');
+    assert.equal(formatarParaTela('5 + 3 * 2'), '5 + 3 * 2');
+  });
+
+  it('mostra a conta da tela em portugues', () => {
+    const resultado = processarComando('137.000,421 + 2 x 3');
+    assert.equal(resultado.tipo, 'conta');
+    assert.equal(
+      formatarParaTela(`${resultado.expressao} = ${resultado.resultado}`),
+      '137.000,421 + 2 * 3 = 137.006,421',
+    );
+  });
+});
+
 function contar(texto: string): number {
   return contarComTipo(texto, 'conta');
 }
@@ -343,4 +412,10 @@ function contarComTipo(texto: string, tipo: ResultadoProcessamento['tipo']): num
 
 function topicoDe(texto: string): string | undefined {
   return processarComando(texto).topico;
+}
+
+function acaoDe(texto: string): string | undefined {
+  const resultado = processarComando(texto);
+  assert.equal(resultado.tipo, 'configuracao', `"${texto}" deveria ser uma configuração`);
+  return resultado.acao;
 }

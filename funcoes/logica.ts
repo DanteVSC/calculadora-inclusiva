@@ -1,4 +1,4 @@
-import { GATILHOS, MENSAGENS, TopicoAjuda } from '../constantes/mensagens';
+import { GATILHOS, GATILHOS_VELOCIDADE, GATILHOS_VOZ, MENSAGENS, TopicoAjuda } from '../constantes/mensagens';
 import { UNIDADES, UnidadeTipo } from '../constantes/unidades';
 
 const PALAVRAS_NUMEROS: Record<string, number> = {
@@ -133,11 +133,13 @@ function substituirPalavrasNumeros(texto: string): string {
 }
 
 export type ResultadoProcessamento = {
-  tipo: 'conta' | 'temperatura' | 'conversao' | 'erro' | 'nao_entendi' | 'ajuda';
+  tipo: 'conta' | 'temperatura' | 'conversao' | 'configuracao' | 'erro' | 'nao_entendi' | 'ajuda';
   expressao?: string;
   resultado?: number | string;
   mensagem?: string;
   topico?: TopicoAjuda;
+  // Ação de configuração pedida por voz (o index.tsx troca e responde).
+  acao?: 'voz' | 'velocidade';
   // Unidade exibida depois do valor no visor (ex.: "cm", "°F").
   unidadeSaida?: string;
   // Frase pronta para o TTS; quando existe, formatarParaFala a usa direto.
@@ -173,6 +175,23 @@ function detectarAjuda(texto: string): ResultadoProcessamento | null {
       }
     }
   }
+
+  return null;
+}
+
+function detectarConfiguracao(texto: string): ResultadoProcessamento | null {
+  const normalizado = normalizar(texto)
+    .replace(/[-?.!,;:]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalizado) return null;
+
+  const bateu = (gatilhos: string[]) =>
+    gatilhos.some((gatilho) => new RegExp(`(^|\\s)${gatilho}(\\s|$)`).test(normalizado));
+
+  // Velocidade antes de voz: "velocidade da voz" tem "voz" no fim.
+  if (bateu(GATILHOS_VELOCIDADE)) return { tipo: 'configuracao', acao: 'velocidade' };
+  if (bateu(GATILHOS_VOZ)) return { tipo: 'configuracao', acao: 'voz' };
 
   return null;
 }
@@ -353,6 +372,9 @@ export function processarComando(texto: string): ResultadoProcessamento {
   const ajuda = detectarAjuda(texto);
   if (ajuda) return ajuda;
 
+  const configuracao = detectarConfiguracao(texto);
+  if (configuracao) return configuracao;
+
   const temp = converterTemperatura(texto);
   if (temp) return temp;
 
@@ -424,6 +446,19 @@ export function processarComando(texto: string): ResultadoProcessamento {
 
 function numeroPorExtenso(valor: number | string): string {
   return String(valor).replace('.', ',');
+}
+
+// Formata números para a tela em pt-BR: vírgula decimal e ponto de milhar.
+// Em expressões ("137000.421 + 2 * 3") formata cada número encontrado.
+export function formatarParaTela(valor: number | string): string {
+  return String(valor).replace(/-?\d+(?:\.\d+)?/g, (trecho) => {
+    const partes = trecho.match(/^(-?)(\d+)(?:\.(\d+))?$/);
+    if (!partes) return trecho;
+
+    const [, sinal = '', inteiro, decimal] = partes;
+    const agrupado = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `${sinal}${agrupado}${decimal ? `,${decimal}` : ''}`;
+  });
 }
 
 export function formatarParaFala(resultado: ResultadoProcessamento): string {

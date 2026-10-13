@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import { AreaTranscricao } from '../componentes/area-transcricao';
 import { BotaoMicrofone } from '../componentes/botao-microfone';
 import { Cabecalho } from '../componentes/cabecalho';
 import { PainelAjuda } from '../componentes/painel-ajuda';
 import { VisorResultado } from '../componentes/visor-resultado';
 import { Cores } from '../constantes/cores';
-import { AMOSTRA_VOZ, MENSAGENS, TopicoAjuda } from '../constantes/mensagens';
+import { AMOSTRA_VOZ, MENSAGENS, RESPOSTAS_CONFIGURACAO, TopicoAjuda } from '../constantes/mensagens';
 import { formatarParaFala, processarComando, ResultadoProcessamento } from '../funcoes/logica';
 import { usarFala } from '../hooks/usar-fala';
 import { usarIntro } from '../hooks/usar-intro';
 import { usarTema } from '../hooks/usar-tema';
 import { usarVoz } from '../hooks/usar-voz';
+
+// O painel de ajuda fecha sozinho depois disso, reiniciando a cada interação.
+const TEMPO_PAINEL_AJUDA_MS = 20_000;
 
 export default function Index() {
   const { tema, inverterTema } = usarTema();
@@ -24,6 +27,7 @@ export default function Index() {
   const [textoLegenda, setTextoLegenda] = useState('');
   const [editando, setEditando] = useState(false);
   const [mostrarAjuda, setMostrarAjuda] = useState(false);
+  const [atividadeAjuda, setAtividadeAjuda] = useState(0);
 
   const textoRef = useRef('');
   textoRef.current = texto || textoParcial;
@@ -36,6 +40,20 @@ export default function Index() {
 
   const aplicarResultado = useCallback(
     (res: ResultadoProcessamento) => {
+      if (res.tipo === 'configuracao' && res.acao) {
+        let msg: string;
+        if (res.acao === 'voz') {
+          if (vozes.length === 0) msg = RESPOSTAS_CONFIGURACAO.vozIndisponivel;
+          else if (vozes.length === 1) msg = RESPOSTAS_CONFIGURACAO.vozUnica;
+          else msg = RESPOSTAS_CONFIGURACAO.vozAlterada(proximaVoz()?.nome ?? '');
+        } else {
+          msg = RESPOSTAS_CONFIGURACAO.velocidadeAlterada(proximaVelocidade());
+        }
+        setResultado({ ...res, mensagem: msg });
+        falar(msg);
+        return;
+      }
+
       if (res.tipo === 'ajuda' && res.topico === 'repetir') {
         const anterior = resultadoRef.current;
         if (anterior?.tipo === 'conta' || anterior?.tipo === 'temperatura' || anterior?.tipo === 'conversao') {
@@ -50,7 +68,7 @@ export default function Index() {
       setResultado(res);
       falar(formatarParaFala(res));
     },
-    [falar],
+    [falar, vozes, proximaVoz, proximaVelocidade],
   );
 
   useEffect(() => {
@@ -59,22 +77,40 @@ export default function Index() {
     marcarIntroVista();
   }, [introPendente, falar, marcarIntroVista]);
 
+  const registrarAtividadeAjuda = useCallback(() => {
+    setAtividadeAjuda((atual) => atual + 1);
+  }, []);
+
+  useEffect(() => {
+    if (!mostrarAjuda) return;
+    const timer = setTimeout(() => setMostrarAjuda(false), TEMPO_PAINEL_AJUDA_MS);
+    return () => clearTimeout(timer);
+  }, [mostrarAjuda, atividadeAjuda]);
+
   const falarTopico = useCallback(
     (topico: TopicoAjuda) => {
+      registrarAtividadeAjuda();
       aplicarResultado({ tipo: 'ajuda', topico, mensagem: MENSAGENS[topico] });
     },
-    [aplicarResultado],
+    [aplicarResultado, registrarAtividadeAjuda],
   );
 
   const handleProximaVoz = useCallback(() => {
+    registrarAtividadeAjuda();
     proximaVoz();
     falar(AMOSTRA_VOZ);
-  }, [proximaVoz, falar]);
+  }, [proximaVoz, falar, registrarAtividadeAjuda]);
 
   const handleProximaVelocidade = useCallback(() => {
+    registrarAtividadeAjuda();
     proximaVelocidade();
     falar(AMOSTRA_VOZ);
-  }, [proximaVelocidade, falar]);
+  }, [proximaVelocidade, falar, registrarAtividadeAjuda]);
+
+  const handlePressionarMicrofone = useCallback(() => {
+    pararFala();
+    iniciar();
+  }, [pararFala, iniciar]);
 
   const handleParar = useCallback(() => {
     const textoFinal = textoRef.current;
@@ -99,7 +135,12 @@ export default function Index() {
   }, [textoDigitado, aplicarResultado]);
 
   return (
-    <View style={[styles.container, { backgroundColor: cores.fundo }]}>
+    <Pressable
+      // cursor 'auto' anula o 'pointer' que o react-native-web aplica em todo Pressable
+      style={[styles.container, { backgroundColor: cores.fundo, cursor: 'auto' }]}
+      onPressIn={handlePressionarMicrofone}
+      onPressOut={handleParar}
+    >
       <Cabecalho
         cores={cores}
         tema={tema}
@@ -137,17 +178,14 @@ export default function Index() {
       <BotaoMicrofone
         cores={cores}
         ouvindo={ouvindo}
-        aoPressionar={() => {
-          pararFala();
-          iniciar();
-        }}
+        aoPressionar={handlePressionarMicrofone}
         aoSoltar={handleParar}
       />
 
       {aviso && (
         <Text style={[styles.erro, { color: cores.erro }]}>Erro: {aviso}</Text>
       )}
-    </View>
+    </Pressable>
   );
 }
 
