@@ -1,50 +1,53 @@
-# Welcome to your Expo app 👋
+# Calculadora Inclusiva
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App de calculadora para **Android com suporte web** que entende **comandos de voz e texto em português do Brasil** 
+O usuario fala a conta por extenso ("cinco mais três vezes dois") e o app calcula, mostra o resultado formatado em pt-BR e **lê em voz alta**.
+Voltado para pessoas com deficiencias visuais ou em membros superiores.
 
-## Get started
+## Baixar o APK
 
-1. Install dependencies
+Baixe a versão mais recente direto aqui:
 
-   ```bash
-   npm install
-   ```
+**[⬇️ Baixar calculadora-inclusiva.apk](https://github.com/DanteVSC/calculadora-inclusiva/releases/latest/download/calculadora-inclusiva.apk)**
 
-2. Start the app
+Ou acesse a página de [releases do projeto](https://github.com/DanteVSC/calculadora-inclusiva/releases) para ver as versões. Instale o APK no Android (é preciso permitir a instalação de apps de fontes desconhecidas) e conceda as permissões de **microfone** e **áudio** quando solicitado.
 
-   ```bash
-   npx expo start
-   ```
+## Rodar na sua máquina
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Pré-requisitos: [Node.js](https://nodejs.org) (LTS) e, para o app nativo, o [Android Studio](https://developer.android.com/studio) com o SDK Android configurado.
 
 ```bash
-npm run reset-project
+npm install      # instala as dependências
+npm start        # inicia o Metro (escaneie o QR code com o Expo Go)
+npm run web      # roda direto no navegador
+npm run android  # build de desenvolvimento no Android (gera a pasta android/)
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+> **Observação:** o reconhecimento de voz nativo (Android) usa o `expo-speech-recognition`, que **não funciona no Expo Go** — para testar a voz no celular é preciso um dev build (`npm run android`). No **navegador** a voz funciona direto, pela Web Speech API.
 
-## Learn more
+## Funcionalidades
 
-To learn more about developing your project with Expo, look at the following resources:
+- **Operações por voz ou texto** "cinco mais três vezes dois", "cem menos um", "quatro x cinco"
+- **Números por extenso** até trilhão: "um bilhão e duzentos milhões"
+- **Potências e raízes**: "raiz quadrada de 16", "cinco ao quadrado", "dois elevado a 10"
+- **Logaritmo** (base 10): "log de 1000"
+- **Fatorial**: "cinco fatorial", "5!"
+- **Módulo/resto**: "11 modulo 10", "323 vezes 2 modulo 322"
+- **Conversão de temperatura**: "30 graus celsius para fahrenheit"
+- **Conversão de unidades**  tempo, comprimento, velocidade, massa, área, dados (gb, mb) e volume: "duas horas para minutos", "1 GB para MB"
+- **Constantes**: pi e euler
+- **Leitura em voz alta** dos resultados
+- **Voz e velocidade configuráveis** por comando de voz ("voz", "velocidade") ou pelo painel de ajuda.
+- **Guia por voz**: "como usar", "lista de operações", "lista de conversões", "lista de comandos", "boas-vindas"
+- **Interface**, transcrição do que está sendo escrito/apurado na tela e microfone por toque e segurar (tocar em qualquer lugar vazio da tela também grava)
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Estrutura do projeto
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- **Expo + React Native + TypeScript** — um único app para Android e web
+- **expo-router** — navegação; a tela inteira fica em `app/index.tsx`
+- **`funcoes/logica.ts`** — toda a lógica do app (comandos, conversões, constantes)
+- **`expo-speech-recognition`** — reconhecimento de voz no Android
+- **`Web Speech API`** reconhecimento de voz no navegador
+- **`expo-speech`** — interpretar fala
+- **`@react-native-async-storage/async-storage`** — salvar dados localmente (configurações)
+- **`constantes/`** e **`componentes/`** — textos, paleta de cores por tema e componentes de interface
