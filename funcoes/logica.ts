@@ -230,6 +230,16 @@ export function extrairComandoAposPalavraChave(texto: string, palavra: string): 
   return texto.slice(inicio).trim();
 }
 
+// Junta transcrições de voz (finais + parcial) em um texto só, sem espaço
+// sobrando. O iOS devolve transcrições já com espaço na frente quando o app
+// precisa concatenar com a fala anterior.
+export function juntarTranscricoes(...textos: (string | null | undefined)[]): string {
+  return textos
+    .map((texto) => (texto ?? '').trim())
+    .filter((texto) => texto.length > 0)
+    .join(' ');
+}
+
 function converterTemperatura(texto: string): ResultadoProcessamento | null {
   const t = substituirPalavrasNumeros(texto);
 

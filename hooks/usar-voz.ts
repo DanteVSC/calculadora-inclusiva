@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import { juntarTranscricoes } from '../funcoes/logica';
 
 type OpcoesUsarVozTipo = {
   // Chamado a cada transcrição FINAL nova (por sessão). Usado pelo modo
@@ -10,7 +11,10 @@ type OpcoesUsarVozTipo = {
 
 type ReconhecimentoVozTipo = {
   ouvindo: boolean;
+  // Todos os finais da sessão desde a última limpeza (no Android/iOS o texto
+  // chega por trechos, um final por fala).
   texto: string;
+  // Fala em andamento que ainda não virou final.
   textoParcial: string;
   iniciar: () => void;
   parar: () => void;
@@ -37,6 +41,9 @@ export function usarVoz(opcoes?: OpcoesUsarVozTipo): ReconhecimentoVozTipo {
 
   const reconhecimentoRef = useRef<{ stop: () => void } | null>(null);
 
+  // Acúmulo dos finais da sessão (vira o estado `texto`).
+  const finaisAcumuladosRef = useRef('');
+
   // Mantido fresco sem depender do array de deps do useCallback.
   const aoResultadoFinalRef = useRef<OpcoesUsarVozTipo['aoResultadoFinal']>(undefined);
   aoResultadoFinalRef.current = opcoes?.aoResultadoFinal;
@@ -53,14 +60,19 @@ export function usarVoz(opcoes?: OpcoesUsarVozTipo): ReconhecimentoVozTipo {
 
   useSpeechRecognitionEvent('end', () => {
     setOuvindo(false);
-    setTextoParcial('');
+    // O parcial NÃO é limpo aqui: se a sessão morreu sem emitir o `result`
+    // final (silêncio, erro), ele ainda é o final da frase captada. Quem
+    // limpa é `iniciar()` e `limparTexto()`.
   });
 
   useSpeechRecognitionEvent('result', (event) => {
     if (event.results.length > 0) {
       const r = event.results[0];
       if (event.isFinal) {
-        setTexto(r.transcript);
+        // No Android (sessão segmentada) e no iOS cada final traz só o trecho
+        // novo: acumula, senão o trecho anterior seria sobrescrito e perdido.
+        finaisAcumuladosRef.current = juntarTranscricoes(finaisAcumuladosRef.current, r.transcript);
+        setTexto(finaisAcumuladosRef.current);
         setTextoParcial('');
         aoResultadoFinalRef.current?.(r.transcript);
       } else {
@@ -75,6 +87,7 @@ export function usarVoz(opcoes?: OpcoesUsarVozTipo): ReconhecimentoVozTipo {
   });
 
   const iniciar = useCallback(async () => {
+    finaisAcumuladosRef.current = '';
     setTexto('');
     setTextoParcial('');
     setErro(null);
@@ -102,26 +115,30 @@ export function usarVoz(opcoes?: OpcoesUsarVozTipo): ReconhecimentoVozTipo {
       let finaisVistos = 0;
 
       recognition.onresult = (event: any) => {
-        let textoFinal = '';
         let parcial = '';
-        let novosFinais = '';
         let quantosFinais = 0;
+        const novos: string[] = [];
 
         for (let i = 0; i < event.results.length; i++) {
           const resultado = event.results[i];
           if (resultado.isFinal) {
-            textoFinal += resultado[0].transcript;
-            if (i >= finaisVistos) novosFinais += resultado[0].transcript;
             quantosFinais++;
+            if (i >= finaisVistos) novos.push(resultado[0].transcript);
           } else {
             parcial += resultado[0].transcript;
           }
         }
 
+        if (novos.length > 0) {
+          finaisAcumuladosRef.current = juntarTranscricoes(finaisAcumuladosRef.current, ...novos);
+        }
         finaisVistos = quantosFinais;
-        if (novosFinais) aoResultadoFinalRef.current?.(novosFinais);
-        setTexto(textoFinal);
+
+        setTexto(finaisAcumuladosRef.current);
         setTextoParcial(parcial);
+        // Depois dos estados de propósito: um callback pode limpar a transcrição
+        // (modo palavra-chave) e esse limpar precisa vencer os `setTexto`.
+        if (novos.length > 0) aoResultadoFinalRef.current?.(juntarTranscricoes(...novos));
       };
 
       recognition.onerror = (event: any) => {
@@ -133,7 +150,8 @@ export function usarVoz(opcoes?: OpcoesUsarVozTipo): ReconhecimentoVozTipo {
       recognition.onend = () => {
         reconhecimentoRef.current = null;
         setOuvindo(false);
-        setTextoParcial('');
+        // O parcial fica: sem `result` final ele ainda é o final da frase
+        // (o mesmo raciocínio do `end` nativo).
       };
 
       reconhecimentoRef.current = recognition;
@@ -177,6 +195,7 @@ export function usarVoz(opcoes?: OpcoesUsarVozTipo): ReconhecimentoVozTipo {
   }, []);
 
   const limparTexto = useCallback(() => {
+    finaisAcumuladosRef.current = '';
     setTexto('');
     setTextoParcial('');
   }, []);

@@ -16,6 +16,7 @@ import {
 import {
   extrairComandoAposPalavraChave,
   formatarParaFala,
+  juntarTranscricoes,
   processarComando,
   ResultadoProcessamento,
 } from '../funcoes/logica';
@@ -27,6 +28,12 @@ import { usarVoz } from '../hooks/usar-voz';
 
 // O painel de ajuda fecha sozinho depois disso, reiniciando a cada interação.
 const TEMPO_PAINEL_AJUDA_MS = 20_000;
+
+// Ao soltar o microfone a escuta CONTINUA por um tempo: sem isso o `stop()`
+// corta o áudio no meio e perde o final da frase. A espera recomeça a cada fala
+// nova depois da soltada, mas nunca passa do teto máximo.
+const TEMPO_ESCUTA_APOS_SOLTAR_MS = 1500;
+const TEMPO_MAXIMO_ESCUTA_APOS_SOLTAR_MS = 5000;
 
 // Depois de soltar o microfone o Android ainda está processando o áudio: o
 // `stop()` emite o resultado final um pouco depois (fones lentos precisam de
@@ -63,7 +70,8 @@ export default function Index() {
   });
 
   const textoRef = useRef('');
-  textoRef.current = texto || textoParcial;
+  // Finais já captados + fala ainda não finalizada: o que será processado.
+  textoRef.current = juntarTranscricoes(texto, textoParcial);
   const parcialRef = useRef('');
   parcialRef.current = textoParcial;
   const ouvindoRef = useRef(ouvindo);
@@ -75,11 +83,17 @@ export default function Index() {
   const palavraChaveAtivaRef = useRef(palavraChaveAtiva);
   palavraChaveAtivaRef.current = palavraChaveAtiva;
 
-  // true entre "soltou o microfone" e o momento em que o comando é processado;
-  // baseCapturaRef guarda o que existia na soltada (parcial) como reserva.
+  // true entre "encerrar a escuta" e o momento em que o comando é processado;
+  // baseCapturaRef guarda o que existia quando a escuta parou (reserva).
   const aguardandoResultadoRef = useRef(false);
   const baseCapturaRef = useRef('');
   const esperaResultadoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Escuta pós-soltada: entre soltar o microfone e o `stop()` de verdade, para
+  // não perder o final do que a pessoa estava dizendo.
+  const escutaPosSoltarRef = useRef(false);
+  const timerEncerramentoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prazoEncerramentoRef = useRef(0);
 
   // Fase 'gravando': o que já foi finalizado, e o cronômetro de silêncio.
   const comandoAcumuladoRef = useRef('');
@@ -88,7 +102,7 @@ export default function Index() {
   const resultadoRef = useRef<ResultadoProcessamento | null>(null);
   resultadoRef.current = resultado;
 
-  const textoExibicao = textoParcial || texto;
+  const textoExibicao = juntarTranscricoes(texto, textoParcial);
   // Microfone/área só mostram "gravando" no modo manual ou na fase 'gravando';
   // na escuta ociosa o app ouve em silêncio esperando a palavra-chave.
   const gravandoAgora = ouvindo && fase !== 'ocioso';
@@ -195,12 +209,14 @@ export default function Index() {
         if (!ouvindoRef.current) iniciar();
         return;
       }
-      // Só a palavra-chave: a partir daqui, capturar o comando.
+      // Só a palavra-chave: a partir daqui, capturar o comando. Limpa a
+      // transcrição para exibir/capturar só o que vier depois da palavra.
       comandoAcumuladoRef.current = '';
+      limparTexto();
       mudarFase('gravando');
       agendarSilencio();
     },
-    [agendarSilencio, processarTexto, iniciar, mudarFase],
+    [agendarSilencio, processarTexto, iniciar, mudarFase, limparTexto],
   );
   aoResultadoFinalRef.current = tratarResultadoFinal;
 
@@ -212,11 +228,55 @@ export default function Index() {
       clearTimeout(esperaResultadoRef.current);
       esperaResultadoRef.current = null;
     }
-    // prefere o resultado final; sem ele, cai no parcial congelado na soltada
+    // textoRef já junta finais + parcial; baseCapturaRef é a reserva do que
+    // existia quando a escuta parou, caso a transcrição tenha ficado vazia.
     const capturado = textoRef.current || baseCapturaRef.current;
     processarTexto(capturado);
     retomarOcioso();
   }, [processarTexto, retomarOcioso]);
+
+  // Cancela a escuta pós-soltada (se houver) e devolve se ela estava ativa.
+  const cancelarEscutaPosSoltar = useCallback(() => {
+    const ativa = escutaPosSoltarRef.current;
+    escutaPosSoltarRef.current = false;
+    if (timerEncerramentoRef.current) {
+      clearTimeout(timerEncerramentoRef.current);
+      timerEncerramentoRef.current = null;
+    }
+    return ativa;
+  }, []);
+
+  // De fato para o reconhecimento da captura manual e processa o captado.
+  const encerrarEscuta = useCallback(() => {
+    cancelarEscutaPosSoltar();
+    if (aguardandoResultadoRef.current) return;
+    aguardandoResultadoRef.current = true;
+    baseCapturaRef.current = textoRef.current;
+    // Para a sessão mesmo quando o evento `start` ainda não chegou (soltou o
+    // botão rápido demais); no pior caso é um `stop()` num serviço parado.
+    parar();
+    if (ouvindoRef.current) {
+      // No Android o `stop()` emite o resultado final depois; o `result` ou o
+      // `end` costumam concluir antes — este timeout é só a rede de segurança.
+      esperaResultadoRef.current = setTimeout(processarCaptura, TEMPO_ESPERA_RESULTADO_MS);
+    } else {
+      // A sessão já tinha encerrado (silêncio/erro): nada mais vem.
+      processarCaptura();
+    }
+  }, [cancelarEscutaPosSoltar, processarCaptura, parar]);
+
+  // (Re)agenda o fim da escuta pós-soltada: espera um silêncio para não cortar
+  // o final da frase, sem passar do teto máximo.
+  const agendarEncerramento = useCallback(() => {
+    if (!escutaPosSoltarRef.current) return;
+    if (timerEncerramentoRef.current) clearTimeout(timerEncerramentoRef.current);
+    const espera = Math.min(TEMPO_ESCUTA_APOS_SOLTAR_MS, prazoEncerramentoRef.current - Date.now());
+    if (espera <= 0) {
+      encerrarEscuta();
+      return;
+    }
+    timerEncerramentoRef.current = setTimeout(encerrarEscuta, espera);
+  }, [encerrarEscuta]);
 
   useEffect(() => {
     if (!introPendente) return;
@@ -236,6 +296,8 @@ export default function Index() {
 
   // Liga/desliga o modo palavra-chave (botão ou comando de voz).
   useEffect(() => {
+    // Qualquer troca de modo encerra a escuta pós-soltada pendente.
+    cancelarEscutaPosSoltar();
     if (palavraChaveAtiva) {
       mudarFase('ocioso');
       if (!ouvindoRef.current) iniciar();
@@ -249,7 +311,7 @@ export default function Index() {
         silencioRef.current = null;
       }
     }
-  }, [palavraChaveAtiva, iniciar, parar, mudarFase]);
+  }, [palavraChaveAtiva, iniciar, parar, mudarFase, cancelarEscutaPosSoltar]);
 
   // Sessão terminou no modo ocioso (silêncio do reconhecidor): recomeça.
   useEffect(() => {
@@ -263,6 +325,19 @@ export default function Index() {
   useEffect(() => {
     if (faseRef.current === 'gravando' && textoParcial) agendarSilencio();
   }, [textoParcial, agendarSilencio]);
+
+  // Falou mais depois de soltar o microfone: recomeça a espera de silêncio
+  // (dentro do teto máximo) para não parar no meio da frase.
+  useEffect(() => {
+    if (!escutaPosSoltarRef.current) return;
+    if (texto || textoParcial) agendarEncerramento();
+  }, [texto, textoParcial, agendarEncerramento]);
+
+  // A sessão encerrou sozinha durante a escuta pós-soltada: nada mais vem.
+  useEffect(() => {
+    if (!escutaPosSoltarRef.current) return;
+    if (!ouvindo) encerrarEscuta();
+  }, [ouvindo, encerrarEscuta]);
 
   const falarTopico = useCallback(
     (topico: TopicoAjuda) => {
@@ -285,6 +360,9 @@ export default function Index() {
   }, [proximaVelocidade, falar, registrarAtividadeAjuda]);
 
   const handlePressionarMicrofone = useCallback(() => {
+    // Reapertou durante a escuta pós-soltada: cancela o encerramento e
+    // continua gravando sem apagar o que já foi captado.
+    if (cancelarEscutaPosSoltar() && ouvindoRef.current) return;
     aguardandoResultadoRef.current = false;
     if (esperaResultadoRef.current) {
       clearTimeout(esperaResultadoRef.current);
@@ -301,20 +379,21 @@ export default function Index() {
     // e assumir (chamar start() de novo o Android costuma recusar).
     limparTexto();
     if (!ouvindoRef.current) iniciar();
-  }, [pararFala, iniciar, limparTexto, mudarFase]);
+  }, [cancelarEscutaPosSoltar, pararFala, iniciar, limparTexto, mudarFase]);
 
   const handleParar = useCallback(() => {
-    aguardandoResultadoRef.current = true;
-    baseCapturaRef.current = textoRef.current;
-    parar();
-    if (texto || !ouvindo) {
-      // resultado final já tinha chegado, ou a sessão já encerrou (silêncio/
-      // erro): nada mais vem, processa já.
-      processarCaptura();
+    // Soltou o microfone: em vez de parar na hora (cortava o áudio e perdia o
+    // final da frase), a escuta continua por um tempo de silêncio.
+    if (escutaPosSoltarRef.current) return;
+    if (!ouvindoRef.current) {
+      // A sessão já tinha encerrado (silêncio/erro): nada mais vem.
+      encerrarEscuta();
       return;
     }
-    esperaResultadoRef.current = setTimeout(processarCaptura, TEMPO_ESPERA_RESULTADO_MS);
-  }, [parar, texto, ouvindo, processarCaptura]);
+    escutaPosSoltarRef.current = true;
+    prazoEncerramentoRef.current = Date.now() + TEMPO_MAXIMO_ESCUTA_APOS_SOLTAR_MS;
+    agendarEncerramento();
+  }, [encerrarEscuta, agendarEncerramento]);
 
   // O resultado final chegou (evento `result` com isFinal) antes do timeout.
   useEffect(() => {
